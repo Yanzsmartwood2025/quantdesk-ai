@@ -24,12 +24,10 @@ def update_memory_from_closed_trades():
 
         outcome = "WIN" if realized_pl > 0 else "LOSS"
 
-        # OANDA doesn't store our "setup_type". In a full production system,
-        # we'd map trade_id back to our agent traces. For now, we will store
-        # a generic setup if we don't have it, or fetch it if we stored it in clientExtensions.
-        # Since we use simple market orders without clientExtensions in this iteration,
-        # we'll log it as "UNKNOWN_SETUP" unless we add clientExtensions in the order.
-        # Let's improve the order placement to include the setup_type as a client tag.
+        # Deriv doesn't inherently store our "setup_type" in a simple way for CFD/Multipliers.
+        # In a full production system, we'd map trade_id back to our agent traces.
+        # For now, we will store a generic setup if we don't have it.
+        # We'll log it as "UNKNOWN_SETUP" since we don't have clientExtensions support right now.
         client_ext = trade.get("clientExtensions", {})
         setup_type = client_ext.get("tag", "UNKNOWN_SETUP")
 
@@ -103,12 +101,6 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
         if settings.trading_enabled:
             print(f"[{instrument}] Executing {pm_result.action} of {pm_result.units} units. SL: {pm_result.stop_loss_price}, TP: {pm_result.take_profit_price}")
 
-            # Monkey patch oanda's place_market_order temporarily just before call to include the setup_tag if we wanted to
-            # But simpler to just pass it if we update the method signature. For now, we'll leave it as UNKNOWN_SETUP
-            # or we update place_market_order. Let's update oanda client method.
-            # Actually, I'll update oanda client method locally.
-
-            # Since I already updated the dict in deriv_client, let me update the place_market_order call
             order_resp = deriv.place_market_order(
                 instrument=instrument,
                 units=pm_result.units,
