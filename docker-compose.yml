@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  quantdesk-ai:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Deriv Credentials
+      - DERIV_APP_ID=${DERIV_APP_ID}
+      - DERIV_API_TOKEN=${DERIV_API_TOKEN}
+
+      # LLM Providers
+      - GROQ_API_KEY_1=${GROQ_API_KEY_1}
+      - GROQ_API_KEY_2=${GROQ_API_KEY_2}
+      - MISTRAL_API_KEY_1=${MISTRAL_API_KEY_1}
+      - MISTRAL_API_KEY_2=${MISTRAL_API_KEY_2}
+
+      # Supabase Credentials
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+
+      # Trading and Risk Parameters
+      - TRADING_ENABLED=${TRADING_ENABLED}
+      - MAX_POSITION_SIZE=${MAX_POSITION_SIZE}
+      - MAX_DAILY_LOSS=${MAX_DAILY_LOSS}
+      - MAX_OPEN_TRADES=${MAX_OPEN_TRADES}
+
+      # Application Settings
+      - LOOP_INTERVAL_SECONDS=${LOOP_INTERVAL_SECONDS}
+      - PAIRS=${PAIRS}
