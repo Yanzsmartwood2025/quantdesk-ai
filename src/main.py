@@ -48,6 +48,10 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
         print(f"[{instrument}] No candle data fetched. Skipping.")
         return
 
+    # Save the fetched candles to DB
+    print(f"[{instrument}] Saving recent candles to database...")
+    db_client.save_candles(instrument, candles)
+
     # Extract current price for the portfolio manager
     current_price = 0.0
     if candles.get("H1") and len(candles["H1"]) > 0:

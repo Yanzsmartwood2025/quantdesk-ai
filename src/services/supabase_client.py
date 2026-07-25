@@ -1,4 +1,5 @@
 from typing import Dict, Any, Optional
+from datetime import datetime, timezone
 from supabase import create_client, Client
 from src.config import settings
 
@@ -69,6 +70,51 @@ class SupabaseService:
             # Ignore duplicate key errors if trade was already logged
             if "duplicate key value" not in str(e):
                 print(f"Error saving trade outcome to Supabase: {e}")
+
+    def save_candles(self, instrument: str, candles_dict: Dict[str, Any]) -> None:
+        """Saves multi-timeframe candles to the database."""
+        if not self.is_configured:
+            return
+
+        records = []
+        for timeframe, candles in candles_dict.items():
+            if not candles:
+                continue
+            for candle in candles:
+                try:
+                    # Convert epoch string to datetime object, then to ISO-8601 string for Supabase
+                    epoch_str = candle.get("time")
+                    if not epoch_str:
+                        continue
+
+                    epoch_float = float(epoch_str)
+                    dt = datetime.fromtimestamp(epoch_float, tz=timezone.utc)
+                    iso_timestamp = dt.isoformat()
+
+                    records.append({
+                        "instrument": instrument,
+                        "timeframe": timeframe,
+                        "timestamp": iso_timestamp,
+                        "open": candle.get("open"),
+                        "high": candle.get("high"),
+                        "low": candle.get("low"),
+                        "close": candle.get("close"),
+                        "volume": candle.get("volume", 0)
+                    })
+                except Exception as e:
+                    print(f"Error preparing candle for DB insertion: {e}")
+
+        if not records:
+            return
+
+        try:
+            # We use upsert with on_conflict to avoid duplicates
+            self.client.table("market_candles").upsert(
+                records,
+                on_conflict="instrument,timeframe,timestamp"
+            ).execute()
+        except Exception as e:
+            print(f"Error saving candles to Supabase: {e}")
 
     def get_memory_stats(self, instrument: str, setup_type: Optional[str] = None) -> Dict[str, Any]:
         """Fetches win/loss statistics for a given instrument and optionally a specific setup."""

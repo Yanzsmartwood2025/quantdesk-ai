@@ -31,3 +31,20 @@ CREATE TABLE IF NOT EXISTS agent_traces (
 
 CREATE INDEX idx_agent_traces_cycle ON agent_traces(cycle_id);
 CREATE INDEX idx_agent_traces_instrument ON agent_traces(instrument);
+
+-- Table for tracking historical OHLC market candles
+CREATE TABLE IF NOT EXISTS market_candles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    instrument VARCHAR(20) NOT NULL,
+    timeframe VARCHAR(10) NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    open NUMERIC NOT NULL,
+    high NUMERIC NOT NULL,
+    low NUMERIC NOT NULL,
+    close NUMERIC NOT NULL,
+    volume NUMERIC,
+    UNIQUE(instrument, timeframe, timestamp)
+);
+
+CREATE INDEX idx_market_candles_instrument_timeframe ON market_candles(instrument, timeframe);
+CREATE INDEX idx_market_candles_timestamp ON market_candles(timestamp);
