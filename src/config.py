@@ -3,14 +3,15 @@ from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    # OANDA
-    oanda_api_key: str = ""
-    oanda_account_id: str = ""
-    oanda_url: str = "https://api-fxpractice.oanda.com"
+    # Deriv
+    deriv_app_id: str = ""
+    deriv_api_token: str = ""
 
     # LLM APIs
-    groq_api_key: str = ""
-    gemini_api_key: str = ""
+    groq_api_key_1: str = ""
+    groq_api_key_2: str = ""
+    mistral_api_key_1: str = ""
+    mistral_api_key_2: str = ""
 
     # Supabase
     supabase_url: str = ""

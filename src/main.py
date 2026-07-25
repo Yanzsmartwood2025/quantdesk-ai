@@ -3,7 +3,7 @@ import uuid
 from typing import List, Dict, Any
 
 from src.config import settings
-from src.services.oanda_client import oanda
+from src.services.deriv_client import deriv
 from src.services.supabase_client import db_client
 from src.agents.analyst import TechAnalystAgent
 from src.agents.risk import RiskManagerAgent
@@ -12,7 +12,7 @@ from src.agents.portfolio import PortfolioManagerAgent
 def update_memory_from_closed_trades():
     """Polls recently closed trades and updates Supabase memory."""
     print("[SYSTEM] Checking for recently closed trades...")
-    closed_trades = oanda.get_closed_trades(count=50)
+    closed_trades = deriv.get_closed_trades(count=50)
     for trade in closed_trades:
         # We need to extract the instrument, outcome (win/loss), PnL, and trade_id
         trade_id = trade.get("id")
@@ -45,7 +45,7 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
     print(f"\n[PIPELINE] Processing {instrument}...")
 
     # 1. Fetch Multi-Timeframe Data
-    candles = oanda.get_multi_timeframe_candles(instrument, timeframes=["D1", "H4", "H1"], count=20)
+    candles = deriv.get_multi_timeframe_candles(instrument, timeframes=["D1", "H4", "H1"], count=20)
     if not any(candles.values()):
         print(f"[{instrument}] No candle data fetched. Skipping.")
         return
@@ -71,7 +71,7 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
     setup_type = analyst_result.setup_type
 
     # 3. Risk Manager
-    open_trades_count = oanda.get_open_trades_count()
+    open_trades_count = deriv.get_open_trades_count()
     print(f"[{instrument}] Running Risk Manager (Open trades: {open_trades_count})...")
     risk_result = risk_mgr.evaluate(instrument, analyst_result.model_dump(), open_trades_count, cycle_id)
     if not risk_result:
@@ -108,8 +108,8 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
             # or we update place_market_order. Let's update oanda client method.
             # Actually, I'll update oanda client method locally.
 
-            # Since I already updated the dict in oanda_client, let me update the place_market_order call
-            order_resp = oanda.place_market_order(
+            # Since I already updated the dict in deriv_client, let me update the place_market_order call
+            order_resp = deriv.place_market_order(
                 instrument=instrument,
                 units=pm_result.units,
                 stop_loss_price=pm_result.stop_loss_price,
