@@ -19,7 +19,14 @@ class TechAnalystAgent(BaseAgent):
             "You must output a strictly formatted JSON conforming to the requested schema. "
             "Focus on confluence across the provided timeframes (e.g. Daily trend aligning with 1H entry setup)."
         )
-        super().__init__(role_name="analyst", system_prompt=system_prompt, response_model=TechAnalystOutput)
+        from src.config import settings
+        super().__init__(
+            role_name="analyst",
+            system_prompt=system_prompt,
+            response_model=TechAnalystOutput,
+            model_name="groq/llama3-70b-8192",
+            api_keys=[settings.groq_api_key_1, settings.groq_api_key_2]
+        )
 
     def analyze(self, instrument: str, multi_tf_candles: dict, cycle_id: str) -> Optional[TechAnalystOutput]:
         input_data = f"Instrument: {instrument}\nCandles Data:\n{json.dumps(multi_tf_candles, indent=2)}\n\nPlease provide your technical analysis."

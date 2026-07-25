@@ -1,5 +1,6 @@
 import json
-from typing import Type, Any, Dict, Optional, Tuple
+import os
+from typing import Type, Any, Dict, Optional, List
 from pydantic import BaseModel
 import litellm
 from src.config import settings
@@ -9,19 +10,14 @@ from src.services.supabase_client import db_client
 litellm.set_verbose = False
 
 class BaseAgent:
-    def __init__(self, role_name: str, system_prompt: str, response_model: Type[BaseModel]):
+    def __init__(self, role_name: str, system_prompt: str, response_model: Type[BaseModel], model_name: str, api_keys: List[str]):
         self.role_name = role_name
         self.system_prompt = system_prompt
         self.response_model = response_model
 
-        # We will attempt Groq first, then fallback to Gemini
-        self.primary_model = "groq/llama3-70b-8192" # or mixtral-8x7b-32768
-        self.fallback_model = "gemini/gemini-1.5-flash"
-
-        # Register API keys
-        import os
-        os.environ["GROQ_API_KEY"] = settings.groq_api_key
-        os.environ["GEMINI_API_KEY"] = settings.gemini_api_key
+        self.model_name = model_name
+        self.api_keys = [k for k in api_keys if k] # Keep only non-empty keys
+        self.current_key_idx = 0
 
     def _format_prompt(self, user_content: str) -> list:
         return [
@@ -42,67 +38,81 @@ class BaseAgent:
 
     def run(self, input_data: str, instrument: str, cycle_id: str) -> Optional[BaseModel]:
         """
-        Runs the LLM call with litellm routing (primary -> fallback).
+        Runs the LLM call with manual round-robin key rotation for the same provider.
         Parses output into Pydantic model and logs trace to Supabase.
         """
-        # If API keys aren't set, return mock or None to allow tests to run without billing
-        if not settings.groq_api_key and not settings.gemini_api_key:
+        if not self.api_keys:
             print(f"[{self.role_name}] Skipping LLM call, API keys not configured.")
             return None
 
         messages = self._format_prompt(input_data)
-
-        # Configure fallbacks
-        fallbacks = [self.fallback_model]
-
-        # Pydantic schema for structured output
         schema = self.response_model.model_json_schema()
 
-        response = None
-        provider_used = self.primary_model
-        try:
-            # We use litellm.completion with response_format to enforce JSON
-            # and fallbacks parameter to automatically switch if Groq fails
-            response = litellm.completion(
-                model=self.primary_model,
-                messages=messages,
-                fallbacks=fallbacks,
-                response_format={"type": "json_object", "schema": schema},
-                temperature=0.0 # Lowest temp for deterministic reasoning
-            )
+        attempts = 0
+        max_attempts = len(self.api_keys)
 
-            # litellm populates response.model based on which model actually succeeded
-            provider_used = response.model
+        while attempts < max_attempts:
+            api_key = self.api_keys[self.current_key_idx]
 
-            content = response.choices[0].message.content
-            parsed_json = self._extract_json_from_response(content)
+            # Update next index for round-robin across all successive calls
+            self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
 
-            # Validate with Pydantic
-            result = self.response_model(**parsed_json)
+            try:
+                response = litellm.completion(
+                    model=self.model_name,
+                    messages=messages,
+                    api_key=api_key,
+                    response_format={"type": "json_object", "schema": schema},
+                    temperature=0.0 # Lowest temp for deterministic reasoning
+                )
 
-            # Log trace
-            db_client.log_agent_trace(
-                instrument=instrument,
-                cycle_id=cycle_id,
-                agent_role=self.role_name,
-                inputs={"user_content": input_data},
-                outputs=result.model_dump(),
-                prompt_tokens=response.usage.prompt_tokens if response.usage else None,
-                completion_tokens=response.usage.completion_tokens if response.usage else None,
-                provider=provider_used
-            )
+                content = response.choices[0].message.content
+                parsed_json = self._extract_json_from_response(content)
 
-            return result
+                # Validate with Pydantic
+                result = self.response_model(**parsed_json)
 
-        except Exception as e:
-            print(f"[{self.role_name}] Error during LLM call: {e}")
-            # Log failure trace
-            db_client.log_agent_trace(
-                instrument=instrument,
-                cycle_id=cycle_id,
-                agent_role=self.role_name,
-                inputs={"user_content": input_data},
-                outputs={"error": str(e)},
-                provider=provider_used
-            )
-            return None
+                # Log trace
+                db_client.log_agent_trace(
+                    instrument=instrument,
+                    cycle_id=cycle_id,
+                    agent_role=self.role_name,
+                    inputs={"user_content": input_data},
+                    outputs=result.model_dump(),
+                    prompt_tokens=response.usage.prompt_tokens if response.usage else None,
+                    completion_tokens=response.usage.completion_tokens if response.usage else None,
+                    provider=self.model_name
+                )
+
+                return result
+
+            except litellm.exceptions.RateLimitError as e:
+                print(f"[{self.role_name}] Rate limit error on key index {(self.current_key_idx - 1) % len(self.api_keys)}: {e}")
+                attempts += 1
+                if attempts < max_attempts:
+                    print(f"[{self.role_name}] Rotating to next API key...")
+                else:
+                    print(f"[{self.role_name}] All API keys exhausted due to rate limits.")
+                    db_client.log_agent_trace(
+                        instrument=instrument,
+                        cycle_id=cycle_id,
+                        agent_role=self.role_name,
+                        inputs={"user_content": input_data},
+                        outputs={"error": f"Rate limit exhausted across all {max_attempts} keys: {e}"},
+                        provider=self.model_name
+                    )
+            except Exception as e:
+                print(f"[{self.role_name}] Error during LLM call: {e}")
+                # Log failure trace
+                db_client.log_agent_trace(
+                    instrument=instrument,
+                    cycle_id=cycle_id,
+                    agent_role=self.role_name,
+                    inputs={"user_content": input_data},
+                    outputs={"error": str(e)},
+                    provider=self.model_name
+                )
+                return None
+
+        # If it exits the while loop it means all keys were rate limited
+        return None

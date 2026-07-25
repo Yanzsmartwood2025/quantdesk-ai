@@ -24,7 +24,14 @@ class PortfolioManagerAgent(BaseAgent):
             "5. For SELL: Stop loss should be above entry/resistance, take profit near support.\n"
             "6. Units should be positive for BUY, negative for SELL."
         )
-        super().__init__(role_name="portfolio_manager", system_prompt=system_prompt, response_model=PortfolioManagerOutput)
+        from src.config import settings
+        super().__init__(
+            role_name="portfolio_manager",
+            system_prompt=system_prompt,
+            response_model=PortfolioManagerOutput,
+            model_name="mistral/mistral-large-latest",
+            api_keys=[settings.mistral_api_key_1, settings.mistral_api_key_2]
+        )
 
     def decide(
         self,

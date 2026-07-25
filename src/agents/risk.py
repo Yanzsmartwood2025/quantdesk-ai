@@ -22,7 +22,13 @@ class RiskManagerAgent(BaseAgent):
             "3. We have a clear understanding of the stop loss required to not exceed daily loss limits.\n"
             "If any rule is breached or the setup is too weak, you must deny the trade (is_approved=false)."
         )
-        super().__init__(role_name="risk_manager", system_prompt=system_prompt, response_model=RiskManagerOutput)
+        super().__init__(
+            role_name="risk_manager",
+            system_prompt=system_prompt,
+            response_model=RiskManagerOutput,
+            model_name="groq/llama3-70b-8192",
+            api_keys=[settings.groq_api_key_1, settings.groq_api_key_2]
+        )
 
     def evaluate(
         self,
