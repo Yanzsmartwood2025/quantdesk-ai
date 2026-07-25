@@ -1,0 +1,6 @@
+litellm
+supabase
+httpx
+pydantic
+pydantic-settings
+python-dotenv
