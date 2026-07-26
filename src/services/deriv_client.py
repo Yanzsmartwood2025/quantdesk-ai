@@ -18,7 +18,9 @@ class DerivClient:
 
             # Autenticación si el token está disponible
             if self.api_token:
-                auth_req = {"authorize": self.api_token}
+                print(f"Token length: {len(self.api_token)}, starts with: {self.api_token[:3]}...")
+                clean_token = self.api_token.strip()
+                auth_req = {"authorize": clean_token}
                 ws.send(json.dumps(auth_req))
                 auth_res = json.loads(ws.recv())
                 if "error" in auth_res:
