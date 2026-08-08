@@ -1,4 +1,5 @@
 import json
+import httpx
 from typing import List, Dict, Any, Optional
 import websocket
 from src.config import settings
@@ -7,25 +8,85 @@ class DerivClient:
     def __init__(self):
         self.app_id = settings.deriv_app_id
         self.api_token = settings.deriv_api_token
-        self.base_url = f"wss://ws.derivws.com/websockets/v3?app_id={self.app_id}"
+        self.rest_base_url = "https://api.derivws.com/trading/v1/options"
+        self._cached_demo_account_id = None
+
+    def _get_demo_account_id(self) -> Optional[str]:
+        if self._cached_demo_account_id:
+            return self._cached_demo_account_id
+
+        if not self.app_id or not self.api_token:
+            return None
+
+        headers = {
+            "Deriv-App-ID": self.app_id,
+            "Authorization": f"Bearer {self.api_token.strip()}"
+        }
+        try:
+            with httpx.Client() as client:
+                resp = client.get(f"{self.rest_base_url}/accounts", headers=headers, timeout=10.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    accounts = data.get("data", [])
+                    for account in accounts:
+                        if account.get("account_type") == "demo":
+                            self._cached_demo_account_id = account.get("account_id")
+                            return self._cached_demo_account_id
+                else:
+                    print(f"Error fetching accounts: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            print(f"Exception fetching accounts: {e}")
+        return None
+
+    def _get_otp(self, account_id: str) -> Optional[str]:
+        headers = {
+            "Deriv-App-ID": self.app_id,
+            "Authorization": f"Bearer {self.api_token.strip()}"
+        }
+        try:
+            with httpx.Client() as client:
+                resp = client.post(f"{self.rest_base_url}/accounts/{account_id}/otp", headers=headers, timeout=10.0)
+                if resp.status_code == 201 or resp.status_code == 200:
+                    data = resp.json()
+                    # The response typically includes the WebSocket URL or the OTP directly.
+                    # We will try to extract URL or fallback to building it
+                    if "data" in data and "url" in data["data"]:
+                        # Extract the OTP query parameter from the URL if needed, or use the URL directly
+                        return data["data"]["url"]
+                    elif "data" in data and "otp" in data["data"]:
+                        # If just the OTP is provided
+                        return f"wss://api.derivws.com/trading/v1/options/ws/demo?otp={data['data']['otp']}"
+                    elif "url" in data:
+                        return data["url"]
+                    elif "otp" in data:
+                        return f"wss://api.derivws.com/trading/v1/options/ws/demo?otp={data['otp']}"
+                    else:
+                        print(f"Unexpected OTP response format: {data}")
+                else:
+                    print(f"Error fetching OTP: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            print(f"Exception fetching OTP: {e}")
+        return None
 
     def _send_receive(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         if not self.app_id:
             return {}
 
         try:
-            ws = websocket.create_connection(self.base_url)
+            # 1. Get Account ID
+            account_id = self._get_demo_account_id()
+            if not account_id:
+                print("Could not retrieve demo account ID.")
+                return {}
 
-            # Autenticación si el token está disponible
-            if self.api_token:
-                clean_token = self.api_token.strip()
-                auth_req = {"authorize": clean_token}
-                ws.send(json.dumps(auth_req))
-                auth_res = json.loads(ws.recv())
-                if "error" in auth_res:
-                    print(f"Error en autenticación Deriv: {auth_res['error']}")
-                    ws.close()
-                    return {}
+            # 2. Get OTP URL
+            ws_url = self._get_otp(account_id)
+            if not ws_url:
+                print("Could not retrieve WebSocket OTP URL.")
+                return {}
+
+            # 3. Connect directly to authenticated URL
+            ws = websocket.create_connection(ws_url)
 
             # Enviar petición principal
             ws.send(json.dumps(request_data))
