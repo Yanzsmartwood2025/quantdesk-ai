@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 import json
 
+import src.main
+
 class TestDryRun(unittest.TestCase):
     @patch('src.main.update_memory_from_closed_trades')
     @patch('src.main.db_client')
