@@ -9,8 +9,10 @@ import { ReasoningFeed } from './ReasoningFeed';
 import { ChartWidget } from './ChartWidget';
 
 const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY'];
+const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
 
 export function Dashboard() {
+  const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
   const [instrument, setInstrument] = useState(AVAILABLE_INSTRUMENTS[0]);
   const [candles, setCandles] = useState<MarketCandle[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
@@ -124,21 +126,43 @@ export function Dashboard() {
           <p className="text-sm text-gray-500">Mesa de inversión autónoma</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-400">Instrumento:</label>
-          <select
-            value={instrument}
-            onChange={(e) => setInstrument(e.target.value)}
-            className="bg-[#131722] border border-gray-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            {AVAILABLE_INSTRUMENTS.map(inst => (
-              <option key={inst} value={inst}>{inst.replace('_', '/')}</option>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 bg-[#131722] p-1 rounded-lg border border-gray-800">
+            {ASSET_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  category === cat
+                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-transparent'
+                }`}
+              >
+                {cat}
+              </button>
             ))}
-          </select>
+          </div>
+
+          {category === 'Forex' && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-400">Instrumento:</label>
+              <select
+                value={instrument}
+                onChange={(e) => setInstrument(e.target.value)}
+                className="bg-[#131722] border border-gray-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                {AVAILABLE_INSTRUMENTS.map(inst => (
+                  <option key={inst} value={inst}>{inst.replace('_', '/')}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </header>
 
-      {loading ? (
+      {category !== 'Forex' ? (
+        <EmptyState message={`${category} próximamente...`} />
+      ) : loading ? (
          <div className="flex items-center justify-center h-[60vh]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
          </div>
