@@ -9,7 +9,15 @@ import { ReasoningFeed } from './ReasoningFeed';
 import { ChartWidget } from './ChartWidget';
 
 const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY'];
+const SYNTHETIC_INSTRUMENTS = ['R_75', 'R_100', 'BOOM1000', 'CRASH1000'];
 const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
+
+const instrumentLabels: Record<string, string> = {
+  'R_75': 'Volatility 75',
+  'R_100': 'Volatility 100',
+  'BOOM1000': 'Boom 1000',
+  'CRASH1000': 'Crash 1000'
+};
 
 export function Dashboard() {
   const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
@@ -22,6 +30,15 @@ export function Dashboard() {
   const [analystActive, setAnalystActive] = useState(false);
   const [riskActive, setRiskActive] = useState(false);
   const [portfolioActive, setPortfolioActive] = useState(false);
+
+  // Handle category change
+  useEffect(() => {
+    if (category === 'Forex') {
+      if (!AVAILABLE_INSTRUMENTS.includes(instrument)) setInstrument(AVAILABLE_INSTRUMENTS[0]);
+    } else if (category === 'Sintéticos') {
+      if (!SYNTHETIC_INSTRUMENTS.includes(instrument)) setInstrument(SYNTHETIC_INSTRUMENTS[0]);
+    }
+  }, [category, instrument]);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -126,13 +143,13 @@ export function Dashboard() {
           <p className="text-sm text-gray-500">Mesa de inversión autónoma</p>
         </div>
 
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-          <div className="flex flex-wrap items-center gap-2 bg-[#131722] p-1 rounded-lg border border-gray-800">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto overflow-hidden">
+          <div className="flex flex-nowrap overflow-x-auto w-full items-center gap-2 bg-[#131722] p-1 rounded-lg border border-gray-800 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {ASSET_CATEGORIES.map(cat => (
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                className={`whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                   category === cat
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                     : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-transparent'
@@ -143,7 +160,7 @@ export function Dashboard() {
             ))}
           </div>
 
-          {category === 'Forex' && (
+          {(category === 'Forex' || category === 'Sintéticos') && (
             <div className="flex items-center gap-3">
               <label className="text-sm text-gray-400">Instrumento:</label>
               <select
@@ -151,8 +168,11 @@ export function Dashboard() {
                 onChange={(e) => setInstrument(e.target.value)}
                 className="bg-[#131722] border border-gray-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                {AVAILABLE_INSTRUMENTS.map(inst => (
+                {category === 'Forex' && AVAILABLE_INSTRUMENTS.map(inst => (
                   <option key={inst} value={inst}>{inst.replace('_', '/')}</option>
+                ))}
+                {category === 'Sintéticos' && SYNTHETIC_INSTRUMENTS.map(inst => (
+                  <option key={inst} value={inst}>{instrumentLabels[inst] || inst}</option>
                 ))}
               </select>
             </div>
@@ -160,18 +180,18 @@ export function Dashboard() {
         </div>
       </header>
 
-      {category !== 'Forex' ? (
+      {(category !== 'Forex' && category !== 'Sintéticos') ? (
         <EmptyState message={`${category} próximamente...`} />
       ) : loading ? (
          <div className="flex items-center justify-center h-[60vh]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
          </div>
       ) : isDataEmpty ? (
-        <EmptyState message={`Esperando las primeras velas y señales para ${instrument.replace('_', '/')}...`} />
+        <EmptyState message={`Esperando las primeras velas y señales para ${instrumentLabels[instrument] || instrument.replace('_', '/')}...`} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-120px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
           {/* Left Column: Agents & Feed */}
-          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-full">
+          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
             <div className="flex flex-col gap-3">
               <AgentStatusCard
                 role="analyst"
@@ -196,7 +216,7 @@ export function Dashboard() {
               />
             </div>
 
-            <div className="flex-1 overflow-hidden mt-2">
+            <div className="flex-1 overflow-hidden mt-2 min-h-[300px] lg:min-h-0 flex flex-col">
               <ReasoningFeed traces={traces} />
             </div>
           </div>

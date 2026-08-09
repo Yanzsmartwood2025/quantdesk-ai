@@ -125,6 +125,7 @@ def main_loop():
     print(f"Trading Enabled: {settings.trading_enabled}")
     print(f"Loop Interval: {settings.loop_interval_seconds} seconds")
     print(f"Pairs: {settings.parsed_pairs}")
+    print(f"Synthetics: {settings.parsed_synthetic_instruments}")
     print("="*50)
 
     analyst = TechAnalystAgent()
@@ -142,6 +143,10 @@ def main_loop():
             # Process each pair
             for pair in settings.parsed_pairs:
                 process_instrument(pair, cycle_id, analyst, risk_mgr, portfolio_mgr)
+
+            # Process each synthetic instrument
+            for synth in settings.parsed_synthetic_instruments:
+                process_instrument(synth, cycle_id, analyst, risk_mgr, portfolio_mgr)
 
         except Exception as e:
             print(f"[SYSTEM ERROR] {e}")

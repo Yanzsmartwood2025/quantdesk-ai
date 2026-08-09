@@ -98,6 +98,10 @@ class DerivClient:
             return {}
 
     def _map_instrument(self, instrument: str) -> str:
+        # Sintéticos de Deriv no llevan prefijo "frx"
+        if instrument in ["R_75", "R_100", "BOOM1000", "CRASH1000"]:
+            return instrument
+
         # Mapear EUR_USD a frxEURUSD
         parts = instrument.split("_")
         if len(parts) == 2:
