@@ -51,68 +51,81 @@ class BaseAgent:
         attempts = 0
         max_attempts = len(self.api_keys)
 
+        # Max validation retries allowed per API key attempt
+        max_validation_retries = 1
+
         while attempts < max_attempts:
             api_key = self.api_keys[self.current_key_idx]
 
             # Update next index for round-robin across all successive calls
             self.current_key_idx = (self.current_key_idx + 1) % len(self.api_keys)
 
-            try:
-                response = litellm.completion(
-                    model=self.model_name,
-                    messages=messages,
-                    api_key=api_key,
-                    response_format={"type": "json_object", "schema": schema},
-                    temperature=0.0 # Lowest temp for deterministic reasoning
-                )
+            validation_retries = 0
+            while validation_retries <= max_validation_retries:
+                try:
+                    response = litellm.completion(
+                        model=self.model_name,
+                        messages=messages,
+                        api_key=api_key,
+                        response_format={"type": "json_object", "schema": schema},
+                        temperature=0.0 # Lowest temp for deterministic reasoning
+                    )
 
-                content = response.choices[0].message.content
-                parsed_json = self._extract_json_from_response(content)
+                    content = response.choices[0].message.content
+                    parsed_json = self._extract_json_from_response(content)
 
-                # Validate with Pydantic
-                result = self.response_model(**parsed_json)
+                    # Validate with Pydantic
+                    result = self.response_model(**parsed_json)
 
-                # Log trace
-                db_client.log_agent_trace(
-                    instrument=instrument,
-                    cycle_id=cycle_id,
-                    agent_role=self.role_name,
-                    inputs={"user_content": input_data},
-                    outputs=result.model_dump(),
-                    prompt_tokens=response.usage.prompt_tokens if response.usage else None,
-                    completion_tokens=response.usage.completion_tokens if response.usage else None,
-                    provider=self.model_name
-                )
-
-                return result
-
-            except litellm.exceptions.RateLimitError as e:
-                print(f"[{self.role_name}] Rate limit error on key index {(self.current_key_idx - 1) % len(self.api_keys)}: {e}")
-                attempts += 1
-                if attempts < max_attempts:
-                    print(f"[{self.role_name}] Rotating to next API key...")
-                else:
-                    print(f"[{self.role_name}] All API keys exhausted due to rate limits.")
+                    # Log trace
                     db_client.log_agent_trace(
                         instrument=instrument,
                         cycle_id=cycle_id,
                         agent_role=self.role_name,
                         inputs={"user_content": input_data},
-                        outputs={"error": f"Rate limit exhausted across all {max_attempts} keys: {e}"},
+                        outputs=result.model_dump(),
+                        prompt_tokens=response.usage.prompt_tokens if response.usage else None,
+                        completion_tokens=response.usage.completion_tokens if response.usage else None,
                         provider=self.model_name
                     )
-            except Exception as e:
-                print(f"[{self.role_name}] Error during LLM call: {e}")
-                # Log failure trace
-                db_client.log_agent_trace(
-                    instrument=instrument,
-                    cycle_id=cycle_id,
-                    agent_role=self.role_name,
-                    inputs={"user_content": input_data},
-                    outputs={"error": str(e)},
-                    provider=self.model_name
-                )
-                return None
 
-        # If it exits the while loop it means all keys were rate limited
+                    return result
+
+                except litellm.exceptions.RateLimitError as e:
+                    print(f"[{self.role_name}] Rate limit error on key index {(self.current_key_idx - 1) % len(self.api_keys)}: {e}")
+                    attempts += 1
+                    if attempts < max_attempts:
+                        print(f"[{self.role_name}] Rotating to next API key...")
+                    else:
+                        print(f"[{self.role_name}] All API keys exhausted due to rate limits.")
+                        db_client.log_agent_trace(
+                            instrument=instrument,
+                            cycle_id=cycle_id,
+                            agent_role=self.role_name,
+                            inputs={"user_content": input_data},
+                            outputs={"error": f"Rate limit exhausted across all {max_attempts} keys: {e}"},
+                            provider=self.model_name
+                        )
+                    # Break out of the validation retry loop to move to the next API key (if any)
+                    break
+
+                except Exception as e:
+                    print(f"[{self.role_name}] Error during LLM call or validation: {e}")
+                    validation_retries += 1
+                    if validation_retries <= max_validation_retries:
+                        print(f"[{self.role_name}] Retrying LLM call (validation attempt {validation_retries + 1})...")
+                        continue
+                    else:
+                        # Log failure trace after exhausting validation retries
+                        db_client.log_agent_trace(
+                            instrument=instrument,
+                            cycle_id=cycle_id,
+                            agent_role=self.role_name,
+                            inputs={"user_content": input_data},
+                            outputs={"error": f"Failed after {max_validation_retries} validation retries: {str(e)}"},
+                            provider=self.model_name
+                        )
+                        return None
+
+        # If it exits the while loop it means all keys were rate limited or an unhandled break occurred
         return None

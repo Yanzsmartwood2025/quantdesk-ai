@@ -108,13 +108,17 @@ class DerivClient:
             return f"frx{parts[0]}{parts[1]}"
         return instrument
 
-    def get_multi_timeframe_candles(self, instrument: str, timeframes: List[str] = ["D1", "H4", "H1"], count: int = 10) -> Dict[str, Any]:
+    def get_multi_timeframe_candles(self, instrument: str, timeframes: List[str] = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count: int = 10) -> Dict[str, Any]:
         results = {}
         deriv_symbol = self._map_instrument(instrument)
 
         # Mapear temporalidades a granularidad de Deriv (en segundos)
         # 60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 14400, 28800, 86400
         tf_map = {
+            "M1": 60,
+            "M5": 300,
+            "M15": 900,
+            "M30": 1800,
             "H1": 3600,
             "H4": 14400,
             "D1": 86400
