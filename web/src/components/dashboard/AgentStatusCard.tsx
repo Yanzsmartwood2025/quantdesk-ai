@@ -48,8 +48,8 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
       className={cn(
         "relative overflow-hidden rounded-xl border p-5 transition-all duration-500",
         isActive
-          ? `bg-[#1a1f2e] border-gray-600 ${glowClass}`
-          : "bg-[#131722] border-gray-800"
+          ? `bg-gray-50 dark:bg-[#1a1f2e] border-gray-300 dark:border-gray-600 ${glowClass}`
+          : "bg-white dark:bg-[#131722] border-gray-200 dark:border-gray-800"
       )}
     >
       {/* Background Pulse when active */}
@@ -61,12 +61,12 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
 
       <div className="relative z-10 flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className={cn("p-2 rounded-lg border", isActive ? bgClass : "bg-gray-800/50 border-gray-700")}>
-            <Icon className={cn("w-5 h-5", isActive ? colorClass : "text-gray-400")} />
+          <div className={cn("p-2 rounded-lg border", isActive ? bgClass : "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700")}>
+            <Icon className={cn("w-5 h-5", isActive ? colorClass : "text-gray-500 dark:text-gray-400")} />
           </div>
           <div>
-            <h4 className="font-medium text-gray-200">{title}</h4>
-            <p className="text-xs text-gray-400">{description}</p>
+            <h4 className="font-medium text-gray-800 dark:text-gray-200">{title}</h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
           </div>
         </div>
 
@@ -74,7 +74,7 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
           <div className="flex items-center gap-2">
             <span className={cn(
               "text-xs font-medium uppercase tracking-wider",
-              isActive ? colorClass : "text-gray-500"
+              isActive ? colorClass : "text-gray-400 dark:text-gray-500"
             )}>
               {isActive ? 'Analizando...' : 'En Espera'}
             </span>
@@ -82,12 +82,12 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
               {isActive && (
                 <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", bgClass.split(' ')[0].replace('/20', ''))}></span>
               )}
-              <span className={cn("relative inline-flex rounded-full h-2 w-2", isActive ? bgClass.split(' ')[0].replace('/20', '') : 'bg-gray-600')}></span>
+              <span className={cn("relative inline-flex rounded-full h-2 w-2", isActive ? bgClass.split(' ')[0].replace('/20', '') : 'bg-gray-300 dark:bg-gray-600')}></span>
             </div>
           </div>
 
           {lastActiveAt && !isActive && (
-            <span className="text-[10px] text-gray-500">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500">
               Último: {new Date(lastActiveAt).toLocaleTimeString()}
             </span>
           )}

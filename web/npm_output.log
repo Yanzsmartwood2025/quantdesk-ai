@@ -1,9 +1,213 @@
 
-> web@0.1.0 start
-> next start
+> web@0.1.0 dev
+> next dev
 
-▲ Next.js 16.3.0
+▲ Next.js 16.3.0 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 195ms
-✓ Running next.config.ts took 41ms
+- Environments: .env.local
+✓ Ready in 572ms
+✓ Running next.config.ts took 43ms
+
+○ Compiling / ...
+ GET / 200 in 5.9s (next.js: 5.3s, application-code: 581ms)
+ GET / 200 in 67ms (next.js: 11ms, application-code: 56ms)
+[browser] Failed to load timeframes: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:757:76)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:59:17)
+  57 |
+  58 |       if (timeframeError) {
+> 59 |         console.error("Failed to load timeframes:", timeframeError);
+     |                 ^
+  60 |       }
+  61 |
+  62 |       let availableTimeframes: string[] = []; (src/components/dashboard/Dashboard.tsx:59:17)
+[browser] Failed to load timeframes: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:757:76)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:59:17)
+  57 |
+  58 |       if (timeframeError) {
+> 59 |         console.error("Failed to load timeframes:", timeframeError);
+     |                 ^
+  60 |       }
+  61 |
+  62 |       let availableTimeframes: string[] = []; (src/components/dashboard/Dashboard.tsx:59:17)
+[browser] Failed to load timeframes: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:757:76)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:59:17)
+  57 |
+  58 |       if (timeframeError) {
+> 59 |         console.error("Failed to load timeframes:", timeframeError);
+     |                 ^
+  60 |       }
+  61 |
+  62 |       let availableTimeframes: string[] = []; (src/components/dashboard/Dashboard.tsx:59:17)
+[browser] Failed to load candles: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:793:72)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:97:33)
+   95 |         setCandles(candlesData);
+   96 |       }
+>  97 |       if (candlesError) console.error("Failed to load candles:", candlesError);
+      |                                 ^
+   98 |
+   99 |       // 3. Fetch initial traces
+  100 |       const { data: tracesData, error: tracesError } = await supabase (src/components/dashboard/Dashboard.tsx:97:33)
+[browser] Failed to load candles: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:793:72)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:97:33)
+   95 |         setCandles(candlesData);
+   96 |       }
+>  97 |       if (candlesError) console.error("Failed to load candles:", candlesError);
+      |                                 ^
+   98 |
+   99 |       // 3. Fetch initial traces
+  100 |       const { data: tracesData, error: tracesError } = await supabase (src/components/dashboard/Dashboard.tsx:97:33)
+[browser] Failed to load candles: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:793:72)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:97:33)
+   95 |         setCandles(candlesData);
+   96 |       }
+>  97 |       if (candlesError) console.error("Failed to load candles:", candlesError);
+      |                                 ^
+   98 |
+   99 |       // 3. Fetch initial traces
+  100 |       const { data: tracesData, error: tracesError } = await supabase (src/components/dashboard/Dashboard.tsx:97:33)
+[browser] Failed to load traces: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:799:70)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:110:32)
+  108 |         setTraces(tracesData);
+  109 |       }
+> 110 |       if (tracesError) console.error("Failed to load traces:", tracesError);
+      |                                ^
+  111 |
+  112 |       setLoading(false);
+  113 |     }; (src/components/dashboard/Dashboard.tsx:110:32)
+[browser] Failed to load traces: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:799:70)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:110:32)
+  108 |         setTraces(tracesData);
+  109 |       }
+> 110 |       if (tracesError) console.error("Failed to load traces:", tracesError);
+      |                                ^
+  111 |
+  112 |       setLoading(false);
+  113 |     }; (src/components/dashboard/Dashboard.tsx:110:32)
+[browser] Failed to load traces: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:799:70)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:110:32)
+  108 |         setTraces(tracesData);
+  109 |       }
+> 110 |       if (tracesError) console.error("Failed to load traces:", tracesError);
+      |                                ^
+  111 |
+  112 |       setLoading(false);
+  113 |     }; (src/components/dashboard/Dashboard.tsx:110:32)
+ GET / 200 in 56ms (next.js: 6ms, application-code: 51ms)
+[browser] Failed to load timeframes: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:757:76)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:59:17)
+  57 |
+  58 |       if (timeframeError) {
+> 59 |         console.error("Failed to load timeframes:", timeframeError);
+     |                 ^
+  60 |       }
+  61 |
+  62 |       let availableTimeframes: string[] = []; (src/components/dashboard/Dashboard.tsx:59:17)
+[browser] Failed to load timeframes: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchTimeframesAndData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:757:76)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchTimeframesAndData (src/components/dashboard/Dashboard.tsx:59:17)
+  57 |
+  58 |       if (timeframeError) {
+> 59 |         console.error("Failed to load timeframes:", timeframeError);
+     |                 ^
+  60 |       }
+  61 |
+  62 |       let availableTimeframes: string[] = []; (src/components/dashboard/Dashboard.tsx:59:17)
