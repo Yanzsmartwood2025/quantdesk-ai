@@ -71,6 +71,52 @@ class SupabaseService:
             if "duplicate key value" not in str(e):
                 print(f"Error saving trade outcome to Supabase: {e}")
 
+    def get_recent_candles(self, instrument: str, timeframes: list = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"], limit: int = 20) -> Dict[str, Any]:
+        """Fetches recent candles from Supabase for given timeframes."""
+        if not self.is_configured:
+            return {}
+
+        results = {}
+        try:
+            for tf in timeframes:
+                # Order by timestamp descending, limit, then reverse so they are chronological
+                response = self.client.table("market_candles") \
+                    .select("timestamp, open, high, low, close, volume") \
+                    .eq("instrument", instrument) \
+                    .eq("timeframe", tf) \
+                    .order("timestamp", desc=True) \
+                    .limit(limit) \
+                    .execute()
+
+                data = response.data
+                # Reverse to get chronological order (oldest to newest)
+                data.reverse()
+
+                # Format to match Deriv's dictionary structure expected by agents
+                formatted_candles = []
+                for row in data:
+                    try:
+                        # Convert ISO timestamp back to epoch string
+                        dt = datetime.fromisoformat(row["timestamp"])
+                        epoch_str = str(int(dt.timestamp()))
+
+                        formatted_candles.append({
+                            "time": epoch_str,
+                            "open": float(row["open"]),
+                            "high": float(row["high"]),
+                            "low": float(row["low"]),
+                            "close": float(row["close"]),
+                            "volume": float(row["volume"]) if row["volume"] is not None else 0
+                        })
+                    except Exception as e:
+                        print(f"Error formatting DB candle: {e}")
+
+                results[tf] = formatted_candles
+            return results
+        except Exception as e:
+            print(f"Error fetching candles from Supabase: {e}")
+            return {}
+
     def save_candles(self, instrument: str, candles_dict: Dict[str, Any]) -> None:
         """Saves multi-timeframe candles to the database."""
         if not self.is_configured:
@@ -155,6 +201,46 @@ class SupabaseService:
         except Exception as e:
             print(f"Error fetching active instruments statuses: {e}")
             return {}
+
+    def sync_synthetics(self, synthetics_list: list) -> None:
+        """Syncs the list of synthetic instruments to the database without overwriting existing ones."""
+        if not self.is_configured:
+            return
+
+        records = []
+        for synth in synthetics_list:
+            symbol = synth.get("symbol")
+            submarket = synth.get("submarket_display_name")
+            if not symbol or not submarket:
+                continue
+
+            records.append({
+                "instrument": symbol,
+                "category": submarket,
+                "is_active": False  # Default to false for new ones
+            })
+
+        if not records:
+            return
+
+        try:
+            # We use ignore_duplicates=True so it only inserts missing ones.
+            # We cannot do standard upsert if we want to preserve is_active.
+            # No on_conflict support in Supabase py client for ignore yet, so we insert with ignore_duplicates.
+            # Using raw postgrest .insert(records).execute() won't ignore by default.
+            # Actually, standard behavior without upsert is to fail the batch.
+            # A better way is to insert one by one or fetch existing.
+            existing_resp = self.client.table("active_instruments").select("instrument").execute()
+            existing_instruments = {row["instrument"] for row in existing_resp.data}
+
+            new_records = [r for r in records if r["instrument"] not in existing_instruments]
+
+            if new_records:
+                self.client.table("active_instruments").insert(new_records).execute()
+                print(f"Synced {len(new_records)} new synthetic instruments.")
+
+        except Exception as e:
+            print(f"Error syncing synthetics: {e}")
 
 # Global instance
 db_client = SupabaseService()
