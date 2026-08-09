@@ -24,7 +24,7 @@ class TechAnalystAgent(BaseAgent):
             role_name="analyst",
             system_prompt=system_prompt,
             response_model=TechAnalystOutput,
-            model_name="groq/llama3-70b-8192",
+            model_name=settings.groq_model,
             api_keys=[settings.groq_api_key_1, settings.groq_api_key_2]
         )
 

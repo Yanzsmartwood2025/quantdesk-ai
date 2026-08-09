@@ -26,7 +26,7 @@ class RiskManagerAgent(BaseAgent):
             role_name="risk_manager",
             system_prompt=system_prompt,
             response_model=RiskManagerOutput,
-            model_name="groq/llama3-70b-8192",
+            model_name=settings.groq_model,
             api_keys=[settings.groq_api_key_1, settings.groq_api_key_2]
         )
 
