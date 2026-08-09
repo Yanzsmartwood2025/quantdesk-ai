@@ -11,6 +11,7 @@ interface AgentStatusCardProps {
   description: string;
   isActive: boolean;
   lastActiveAt?: string;
+  isPaused?: boolean;
 }
 
 const roleIcons = {
@@ -37,7 +38,7 @@ const roleGlows = {
   portfolio_manager: 'shadow-[0_0_15px_rgba(168,85,247,0.5)]',
 };
 
-export function AgentStatusCard({ role, title, description, isActive, lastActiveAt }: AgentStatusCardProps) {
+export function AgentStatusCard({ role, title, description, isActive, lastActiveAt, isPaused }: AgentStatusCardProps) {
   const Icon = roleIcons[role];
   const colorClass = roleColors[role];
   const bgClass = roleBgs[role];
@@ -74,15 +75,15 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
           <div className="flex items-center gap-2">
             <span className={cn(
               "text-xs font-medium uppercase tracking-wider",
-              isActive ? colorClass : "text-gray-400 dark:text-gray-500"
+              isActive ? colorClass : (isPaused ? "text-gray-400 dark:text-gray-500" : "text-gray-400 dark:text-gray-500")
             )}>
-              {isActive ? 'Analizando...' : 'En Espera'}
+              {isActive ? 'Analizando...' : (isPaused ? 'Instrumento en pausa' : 'En Espera')}
             </span>
             <div className="relative flex h-2 w-2">
               {isActive && (
                 <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", bgClass.split(' ')[0].replace('/20', ''))}></span>
               )}
-              <span className={cn("relative inline-flex rounded-full h-2 w-2", isActive ? bgClass.split(' ')[0].replace('/20', '') : 'bg-gray-300 dark:bg-gray-600')}></span>
+              <span className={cn("relative inline-flex rounded-full h-2 w-2", isActive ? bgClass.split(' ')[0].replace('/20', '') : (isPaused ? 'bg-gray-400 dark:bg-gray-700' : 'bg-gray-300 dark:bg-gray-600'))}></span>
             </div>
           </div>
 

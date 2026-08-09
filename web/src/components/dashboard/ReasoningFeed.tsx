@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface ReasoningFeedProps {
   traces: AgentTrace[];
+  isPaused?: boolean;
 }
 
 const roleIcons = {
@@ -28,7 +29,7 @@ const roleNames = {
   portfolio_manager: 'Portfolio Manager',
 };
 
-export function ReasoningFeed({ traces }: ReasoningFeedProps) {
+export function ReasoningFeed({ traces, isPaused }: ReasoningFeedProps) {
   if (traces.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500 bg-white dark:bg-[#131722] rounded-lg border border-gray-200 dark:border-gray-800 p-4">
@@ -47,6 +48,11 @@ export function ReasoningFeed({ traces }: ReasoningFeedProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-sm">
+        {isPaused && (
+          <div className="p-3 mb-2 text-sm text-yellow-800 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800/30" role="alert">
+            <span className="font-semibold">Instrumento en pausa.</span> La IA no consumirá tokens ni analizará este instrumento hasta que lo actives.
+          </div>
+        )}
         {traces.map((trace) => {
           const Icon = roleIcons[trace.agent_role];
 

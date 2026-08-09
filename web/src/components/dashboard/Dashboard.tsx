@@ -35,6 +35,9 @@ export function Dashboard() {
   const [riskActive, setRiskActive] = useState(false);
   const [portfolioActive, setPortfolioActive] = useState(false);
 
+  // Active Instrument state
+  const [isInstrumentActive, setIsInstrumentActive] = useState(false);
+
   // Handle category change
   useEffect(() => {
     if (category === 'Forex') {
@@ -106,6 +109,20 @@ export function Dashboard() {
         .order('created_at', { ascending: false })
         .limit(50);
 
+      // 4. Fetch active state
+      const { data: activeData, error: activeError } = await supabase
+        .from('active_instruments')
+        .select('is_active')
+        .eq('instrument', instrument)
+        .single();
+
+      if (activeData) {
+        setIsInstrumentActive(activeData.is_active);
+      } else {
+        setIsInstrumentActive(false); // default
+      }
+      if (activeError) console.error("Failed to load active status:", activeError);
+
       if (tracesData) {
         setTraces(tracesData);
       }
@@ -165,12 +182,41 @@ export function Dashboard() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'active_instruments',
+          filter: `instrument=eq.${instrument}`,
+        },
+        (payload) => {
+          setIsInstrumentActive(payload.new.is_active);
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [instrument, selectedTimeframe]);
+
+  const toggleInstrumentActive = async () => {
+    const newState = !isInstrumentActive;
+    // Optimistic update
+    setIsInstrumentActive(newState);
+
+    const { error } = await supabase
+      .from('active_instruments')
+      .update({ is_active: newState, activated_at: newState ? new Date().toISOString() : null })
+      .eq('instrument', instrument);
+
+    if (error) {
+      console.error("Failed to update active status:", error);
+      // Revert on error
+      setIsInstrumentActive(!newState);
+    }
+  };
 
   // Derived state for empty state
   const isDataEmpty = !loading && candles.length === 0 && traces.length === 0;
@@ -221,6 +267,17 @@ export function Dashboard() {
                 onSelect={setInstrument}
                 getLabel={(inst) => category === 'Forex' ? inst.replace('_', '/') : (instrumentLabels[inst] || inst)}
               />
+              <button
+                onClick={toggleInstrumentActive}
+                className={`ml-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border ${
+                  isInstrumentActive
+                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50 dark:hover:bg-blue-500/30'
+                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 dark:bg-[#1a1f2e] dark:text-gray-400 dark:border-gray-700 dark:hover:bg-[#2a2f3e]'
+                }`}
+                title={isInstrumentActive ? 'Pausar análisis de IA' : 'Activar análisis de IA (consumirá tokens)'}
+              >
+                {isInstrumentActive ? 'Activo' : 'Pausado'}
+              </button>
             </div>
           )}
           <div className="hidden md:block">
@@ -248,6 +305,7 @@ export function Dashboard() {
                 description="Identifica setups de mercado"
                 isActive={analystActive}
                 lastActiveAt={lastAnalyst}
+                isPaused={!isInstrumentActive}
               />
               <AgentStatusCard
                 role="risk_manager"
@@ -255,6 +313,7 @@ export function Dashboard() {
                 description="Evalúa riesgo/recompensa"
                 isActive={riskActive}
                 lastActiveAt={lastRisk}
+                isPaused={!isInstrumentActive}
               />
               <AgentStatusCard
                 role="portfolio_manager"
@@ -262,11 +321,12 @@ export function Dashboard() {
                 description="Decisión final de ejecución"
                 isActive={portfolioActive}
                 lastActiveAt={lastPortfolio}
+                isPaused={!isInstrumentActive}
               />
             </div>
 
             <div className="flex-1 overflow-hidden mt-2 min-h-[300px] lg:min-h-0 flex flex-col">
-              <ReasoningFeed traces={traces} />
+              <ReasoningFeed traces={traces} isPaused={!isInstrumentActive} />
             </div>
           </div>
 
