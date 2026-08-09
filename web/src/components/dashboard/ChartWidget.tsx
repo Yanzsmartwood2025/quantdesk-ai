@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createChart, ColorType, IChartApi, ISeriesApi, SeriesMarker, Time, createSeriesMarkers, CandlestickSeries } from 'lightweight-charts';
 import { MarketCandle, AgentTrace } from '@/types/database';
+import { useTheme } from 'next-themes';
 
 interface ChartWidgetProps {
   candles: MarketCandle[];
@@ -13,19 +14,23 @@ export function ChartWidget({ candles, traces }: ChartWidgetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    const isDark = resolvedTheme !== 'light';
+
     // Initialize chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#131722' },
-        textColor: '#d1d4dc',
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: isDark ? '#d1d4dc' : '#374151',
+        attributionLogo: false,
       },
       grid: {
-        vertLines: { color: 'rgba(42, 46, 57, 0.5)' },
-        horzLines: { color: 'rgba(42, 46, 57, 0.5)' },
+        vertLines: { color: isDark ? 'rgba(42, 46, 57, 0.5)' : 'rgba(229, 231, 235, 0.5)' },
+        horzLines: { color: isDark ? 'rgba(42, 46, 57, 0.5)' : 'rgba(229, 231, 235, 0.5)' },
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
@@ -62,7 +67,7 @@ export function ChartWidget({ candles, traces }: ChartWidgetProps) {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, []);
+  }, [resolvedTheme]);
 
   // Update data and markers when props change
   useEffect(() => {
@@ -126,10 +131,10 @@ export function ChartWidget({ candles, traces }: ChartWidgetProps) {
     // Fit content
     chartRef.current?.timeScale().fitContent();
 
-  }, [candles, traces]);
+  }, [candles, traces, resolvedTheme]);
 
   return (
-    <div className="w-full h-full bg-[#131722] rounded-lg border border-gray-800 overflow-hidden flex flex-col">
+    <div className="w-full h-full bg-white dark:bg-[#131722] rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col transition-colors duration-300">
        <div className="flex-1 w-full h-full" ref={chartContainerRef} />
     </div>
   );

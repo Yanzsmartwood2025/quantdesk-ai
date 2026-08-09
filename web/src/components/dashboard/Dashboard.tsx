@@ -7,8 +7,10 @@ import { EmptyState } from './EmptyState';
 import { AgentStatusCard } from './AgentStatusCard';
 import { ReasoningFeed } from './ReasoningFeed';
 import { ChartWidget } from './ChartWidget';
+import { ThemeToggle } from '../ThemeToggle';
+import { InstrumentSelector } from './InstrumentSelector';
 
-const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY'];
+const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY', 'AUD_USD', 'USD_CAD', 'USD_CHF', 'NZD_USD'];
 const SYNTHETIC_INSTRUMENTS = ['R_75', 'R_100', 'BOOM1000', 'CRASH1000'];
 const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
 
@@ -22,6 +24,8 @@ const instrumentLabels: Record<string, string> = {
 export function Dashboard() {
   const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
   const [instrument, setInstrument] = useState(AVAILABLE_INSTRUMENTS[0]);
+  const [timeframes, setTimeframes] = useState<string[]>([]);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>('');
   const [candles, setCandles] = useState<MarketCandle[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,31 +38,67 @@ export function Dashboard() {
   // Handle category change
   useEffect(() => {
     if (category === 'Forex') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!AVAILABLE_INSTRUMENTS.includes(instrument)) setInstrument(AVAILABLE_INSTRUMENTS[0]);
     } else if (category === 'Sintéticos') {
+
       if (!SYNTHETIC_INSTRUMENTS.includes(instrument)) setInstrument(SYNTHETIC_INSTRUMENTS[0]);
     }
   }, [category, instrument]);
 
   // Initial Data Fetch
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTimeframesAndData = async () => {
       setLoading(true);
 
-      // Fetch initial candles
-      const { data: candlesData, error: candlesError } = await supabase
+      // 1. Fetch available timeframes for this instrument
+      const { data: timeframeData, error: timeframeError } = await supabase
+        .from('market_candles')
+        .select('timeframe')
+        .eq('instrument', instrument);
+
+      if (timeframeError) {
+        console.error("Failed to load timeframes:", timeframeError);
+      }
+
+      let availableTimeframes: string[] = [];
+      if (timeframeData && timeframeData.length > 0) {
+        const uniqueTimeframes = Array.from(new Set(timeframeData.map(d => d.timeframe))).filter(Boolean);
+        // Sort timeframes logically if possible, otherwise keep as is
+        const orderMap: Record<string, number> = { '1m': 1, '5m': 2, '15m': 3, '1H': 4, '4H': 5, '1D': 6 };
+        uniqueTimeframes.sort((a, b) => (orderMap[a] || 99) - (orderMap[b] || 99));
+
+        availableTimeframes = uniqueTimeframes;
+      }
+
+      setTimeframes(availableTimeframes);
+
+      let targetTimeframe = selectedTimeframe;
+      if (availableTimeframes.length > 0 && (!selectedTimeframe || !availableTimeframes.includes(selectedTimeframe))) {
+        targetTimeframe = availableTimeframes[0];
+        setSelectedTimeframe(targetTimeframe);
+      }
+
+      // 2. Fetch candles based on instrument and selected/target timeframe
+      let candlesQuery = supabase
         .from('market_candles')
         .select('*')
         .eq('instrument', instrument)
         .order('timestamp', { ascending: false })
         .limit(200);
 
+      if (targetTimeframe) {
+        candlesQuery = candlesQuery.eq('timeframe', targetTimeframe);
+      }
+
+      const { data: candlesData, error: candlesError } = await candlesQuery;
+
       if (candlesData) {
         setCandles(candlesData);
       }
       if (candlesError) console.error("Failed to load candles:", candlesError);
 
-      // Fetch initial traces
+      // 3. Fetch initial traces
       const { data: tracesData, error: tracesError } = await supabase
         .from('agent_traces')
         .select('*')
@@ -74,11 +114,15 @@ export function Dashboard() {
       setLoading(false);
     };
 
-    fetchData();
-  }, [instrument]);
+    fetchTimeframesAndData();
+  }, [instrument, selectedTimeframe]);
 
   // Supabase Realtime Subscriptions
   useEffect(() => {
+    // Unfortunately, Supabase realtime filters only support a single equality condition out-of-the-box in the standard JS client for `filter`.
+    // To strictly filter by instrument AND timeframe in real-time we must handle it client-side.
+    // We subscribe to the instrument and filter the timeframe inside the callback.
+
     const channel = supabase
       .channel(`room_${instrument}`)
       .on(
@@ -90,7 +134,10 @@ export function Dashboard() {
           filter: `instrument=eq.${instrument}`,
         },
         (payload) => {
-          setCandles((current) => [payload.new as MarketCandle, ...current]);
+          const newCandle = payload.new as MarketCandle;
+          if (!selectedTimeframe || newCandle.timeframe === selectedTimeframe) {
+             setCandles((current) => [newCandle, ...current]);
+          }
         }
       )
       .on(
@@ -123,7 +170,7 @@ export function Dashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [instrument]);
+  }, [instrument, selectedTimeframe]);
 
   // Derived state for empty state
   const isDataEmpty = !loading && candles.length === 0 && traces.length === 0;
@@ -134,25 +181,30 @@ export function Dashboard() {
   const lastPortfolio = traces.find(t => t.agent_role === 'portfolio_manager')?.created_at;
 
   return (
-    <div className="min-h-screen bg-black text-gray-100 p-4 md:p-6 font-sans">
+    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 p-4 md:p-6 font-sans transition-colors duration-300">
       <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-            QuantDesk AI
-          </h1>
-          <p className="text-sm text-gray-500">Mesa de inversión autónoma</p>
+        <div className="flex justify-between items-center w-full md:w-auto">
+          <div>
+            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+              QuantDesk AI
+            </h1>
+            <p className="text-sm text-gray-500">Mesa de inversión autónoma</p>
+          </div>
+          <div className="md:hidden">
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto overflow-hidden">
-          <div className="flex flex-nowrap overflow-x-auto w-full items-center gap-2 bg-[#131722] p-1 rounded-lg border border-gray-800 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex flex-nowrap overflow-x-auto w-full items-center gap-2 bg-gray-100 dark:bg-[#131722] p-1 rounded-lg border border-gray-200 dark:border-gray-800 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {ASSET_CATEGORIES.map(cat => (
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
                 className={`whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                   category === cat
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800 border border-transparent'
+                    ? 'bg-white dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-gray-200 shadow-sm dark:border-blue-500/30'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-800 border border-transparent'
                 }`}
               >
                 {cat}
@@ -161,22 +213,19 @@ export function Dashboard() {
           </div>
 
           {(category === 'Forex' || category === 'Sintéticos') && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-400">Instrumento:</label>
-              <select
-                value={instrument}
-                onChange={(e) => setInstrument(e.target.value)}
-                className="bg-[#131722] border border-gray-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {category === 'Forex' && AVAILABLE_INSTRUMENTS.map(inst => (
-                  <option key={inst} value={inst}>{inst.replace('_', '/')}</option>
-                ))}
-                {category === 'Sintéticos' && SYNTHETIC_INSTRUMENTS.map(inst => (
-                  <option key={inst} value={inst}>{instrumentLabels[inst] || inst}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <label className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">Instrumento:</label>
+              <InstrumentSelector
+                instruments={category === 'Forex' ? AVAILABLE_INSTRUMENTS : SYNTHETIC_INSTRUMENTS}
+                selectedInstrument={instrument}
+                onSelect={setInstrument}
+                getLabel={(inst) => category === 'Forex' ? inst.replace('_', '/') : (instrumentLabels[inst] || inst)}
+              />
             </div>
           )}
+          <div className="hidden md:block">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
@@ -222,8 +271,30 @@ export function Dashboard() {
           </div>
 
           {/* Right Column: Chart */}
-          <div className="lg:col-span-3 h-full min-h-[400px]">
-            <ChartWidget candles={candles} traces={traces} />
+          <div className="lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
+            {timeframes.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Temporalidad:</span>
+                <div className="flex flex-wrap gap-2">
+                  {timeframes.map((tf) => (
+                    <button
+                      key={tf}
+                      onClick={() => setSelectedTimeframe(tf)}
+                      className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                        selectedTimeframe === tf
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex-1 min-h-[400px]">
+              <ChartWidget candles={candles} traces={traces} />
+            </div>
           </div>
         </div>
       )}

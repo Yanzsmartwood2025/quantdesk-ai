@@ -31,17 +31,17 @@ const roleNames = {
 export function ReasoningFeed({ traces }: ReasoningFeedProps) {
   if (traces.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-500 bg-[#131722] rounded-lg border border-gray-800 p-4">
+      <div className="h-full flex items-center justify-center text-gray-500 bg-white dark:bg-[#131722] rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         Esperando razonamientos...
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#131722] rounded-lg border border-gray-800 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800 bg-[#1a1f2e]">
-        <h3 className="font-medium text-gray-200 flex items-center gap-2">
-          <ChevronRight className="w-4 h-4 text-gray-500" />
+    <div className="flex flex-col h-full bg-white dark:bg-[#131722] rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1a1f2e]">
+        <h3 className="font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
+          <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
           Consola de Agentes
         </h3>
       </div>
@@ -78,8 +78,8 @@ export function ReasoningFeed({ traces }: ReasoningFeedProps) {
           }
 
           return (
-            <div key={trace.id} className="group relative pl-6 border-l-2 border-gray-800 pb-2 last:border-transparent">
-              <div className="absolute -left-[11px] top-0 bg-[#131722] p-1 rounded-full border border-gray-700">
+            <div key={trace.id} className="group relative pl-6 border-l-2 border-gray-200 dark:border-gray-800 pb-2 last:border-transparent">
+              <div className="absolute -left-[11px] top-0 bg-white dark:bg-[#131722] p-1 rounded-full border border-gray-200 dark:border-gray-700">
                 <Icon className={cn("w-3 h-3", roleColors[trace.agent_role])} />
               </div>
 
@@ -88,19 +88,19 @@ export function ReasoningFeed({ traces }: ReasoningFeedProps) {
                   <span className={cn("font-semibold", roleColors[trace.agent_role])}>
                     {roleNames[trace.agent_role]}
                   </span>
-                  <span className="text-gray-600">|</span>
+                  <span className="text-gray-400 dark:text-gray-600">|</span>
                   <span className="text-gray-500">
                     {format(new Date(trace.created_at), 'HH:mm:ss')}
                   </span>
                 </div>
 
-                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
                   {reasoningText}
                 </p>
 
                 {signalIcon && (
                   <div className="flex items-center gap-1 mt-1">
-                     <span className={cn("text-xs font-semibold px-2 py-0.5 rounded border border-gray-800 bg-gray-900/50", signalColor)}>
+                     <span className={cn("text-xs font-semibold px-2 py-0.5 rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50", signalColor)}>
                         {outputs?.signal || outputs?.action || (outputs?.approved ? 'APPROVED' : 'REJECTED')}
                      </span>
                   </div>
