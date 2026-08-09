@@ -85,9 +85,3 @@ INSERT INTO active_instruments (instrument, category, is_active) VALUES
 ON CONFLICT (instrument) DO NOTHING;
 
 -- Insert baseline instruments for Synthetics
-INSERT INTO active_instruments (instrument, category, is_active) VALUES
-    ('R_75', 'Sintéticos', false),
-    ('R_100', 'Sintéticos', false),
-    ('BOOM1000', 'Sintéticos', false),
-    ('CRASH1000', 'Sintéticos', false)
-ON CONFLICT (instrument) DO NOTHING;

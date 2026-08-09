@@ -78,11 +78,18 @@ class TestDryRun(unittest.TestCase):
         mock_completion.side_effect = mock_completion_side_effect
 
         # Import main loop and process one instrument
-        from src.main import process_instrument
+        from src.main import process_instrument_candles, process_instrument_ai
         from src.agents.analyst import TechAnalystAgent
         from src.agents.risk import RiskManagerAgent
         from src.agents.portfolio import PortfolioManagerAgent
         import uuid
+
+        # Mock DB recent candles since AI pulls from DB now
+        mock_db_client.get_recent_candles.return_value = {
+            "D1": [{"close": 1.1000}],
+            "H4": [{"close": 1.1020}],
+            "H1": [{"close": 1.1050}]
+        }
 
         # Initialize agents (with mocked litellm via patch)
         analyst = TechAnalystAgent()
@@ -100,7 +107,8 @@ class TestDryRun(unittest.TestCase):
         # Execute the process for one instrument
         print("\n--- Starting Dry Run Simulation ---")
         try:
-            process_instrument("EUR_USD", cycle_id, analyst, risk_mgr, portfolio_mgr, True)
+            process_instrument_candles("EUR_USD")
+            process_instrument_ai("EUR_USD", cycle_id, analyst, risk_mgr, portfolio_mgr)
             success = True
         except Exception as e:
             print(f"Exception during dry run: {e}")

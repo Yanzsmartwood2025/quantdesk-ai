@@ -98,15 +98,30 @@ class DerivClient:
             return {}
 
     def _map_instrument(self, instrument: str) -> str:
-        # Sintéticos de Deriv no llevan prefijo "frx"
-        if instrument in ["R_75", "R_100", "BOOM1000", "CRASH1000"]:
-            return instrument
+        # Si es un par de Forex de los configurados, le agregamos el prefijo 'frx'
+        if instrument in settings.parsed_pairs:
+            parts = instrument.split("_")
+            if len(parts) == 2:
+                return f"frx{parts[0]}{parts[1]}"
 
-        # Mapear EUR_USD a frxEURUSD
-        parts = instrument.split("_")
-        if len(parts) == 2:
-            return f"frx{parts[0]}{parts[1]}"
+        # Para sintéticos u otros, lo devolvemos tal cual
         return instrument
+
+    def get_active_synthetics(self) -> List[Dict[str, Any]]:
+        """Obtiene la lista completa de índices sintéticos de Deriv."""
+        req = {
+            "active_symbols": "brief",
+            "product_type": "basic"
+        }
+        data = self._send_receive(req)
+        active_symbols = data.get("active_symbols", [])
+
+        synthetics = []
+        for symbol in active_symbols:
+            if symbol.get("market") == "synthetic_index":
+                synthetics.append(symbol)
+
+        return synthetics
 
     def get_multi_timeframe_candles(self, instrument: str, timeframes: List[str] = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count: int = 10) -> Dict[str, Any]:
         results = {}

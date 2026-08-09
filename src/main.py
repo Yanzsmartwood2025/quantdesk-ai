@@ -39,21 +39,26 @@ def update_memory_from_closed_trades():
             trade_id=trade_id
         )
 
-def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent, risk_mgr: RiskManagerAgent, portfolio_mgr: PortfolioManagerAgent, is_active: bool):
-    print(f"\n[PIPELINE] Processing {instrument} (Active: {is_active})...")
-
-    # 1. Fetch Multi-Timeframe Data
+def process_instrument_candles(instrument: str):
+    """Fetches and saves multi-timeframe candles to DB without running AI."""
+    print(f"\n[CANDLE FETCH] Fetching candles for {instrument}...")
     candles = deriv.get_multi_timeframe_candles(instrument, timeframes=["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count=20)
     if not any(candles.values()):
-        print(f"[{instrument}] No candle data fetched. Skipping.")
+        print(f"[{instrument}] No candle data fetched.")
         return
 
     # Save the fetched candles to DB
     print(f"[{instrument}] Saving recent candles to database...")
     db_client.save_candles(instrument, candles)
 
-    if not is_active:
-        print(f"[{instrument}] Instrument is paused. Skipping AI analysis.")
+def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAnalystAgent, risk_mgr: RiskManagerAgent, portfolio_mgr: PortfolioManagerAgent):
+    """Runs the AI pipeline using candles fetched from the database."""
+    print(f"\n[AI PIPELINE] Processing {instrument}...")
+
+    # 1. Fetch Multi-Timeframe Data from DB
+    candles = db_client.get_recent_candles(instrument, timeframes=["M1", "M5", "M15", "M30", "H1", "H4", "D1"], limit=20)
+    if not any(candles.values()):
+        print(f"[{instrument}] No candle data in DB. Skipping.")
         return
 
     # Extract current price for the portfolio manager
@@ -127,18 +132,30 @@ def main_loop():
     print("="*50)
     print("QuantDesk AI Pipeline Started")
     print(f"Trading Enabled: {settings.trading_enabled}")
-    print(f"Loop Interval: {settings.loop_interval_seconds} seconds")
+    print(f"AI Loop Interval: {settings.loop_interval_seconds} seconds")
+    print("Candle Fetch Interval: 300 seconds (5 minutes)")
     print(f"Pairs: {settings.parsed_pairs}")
-    print(f"Synthetics: {settings.parsed_synthetic_instruments}")
+
+    # Sync synthetics on startup
+    print("Syncing synthetic indices from Deriv...")
+    synthetics = deriv.get_active_synthetics()
+    if synthetics:
+        db_client.sync_synthetics(synthetics)
+    else:
+        print("Warning: Could not fetch active synthetics from Deriv.")
     print("="*50)
 
     analyst = TechAnalystAgent()
     risk_mgr = RiskManagerAgent()
     portfolio_mgr = PortfolioManagerAgent()
 
+    last_ai_run_time = {}
+    CANDLE_FETCH_INTERVAL = 300 # 5 minutes
+
     while True:
         cycle_id = str(uuid.uuid4())
         print(f"\n--- Starting new cycle: {cycle_id} ---")
+        current_time = time.time()
 
         try:
             # Sync memory first
@@ -147,21 +164,31 @@ def main_loop():
             # Fetch active statuses for all instruments
             active_statuses = db_client.get_active_instruments_statuses()
 
-            # Process each pair
-            for pair in settings.parsed_pairs:
-                is_active = active_statuses.get(pair, False)
-                process_instrument(pair, cycle_id, analyst, risk_mgr, portfolio_mgr, is_active)
+            # All instruments that exist in active_statuses + parsed_pairs
+            all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
 
-            # Process each synthetic instrument
-            for synth in settings.parsed_synthetic_instruments:
-                is_active = active_statuses.get(synth, False)
-                process_instrument(synth, cycle_id, analyst, risk_mgr, portfolio_mgr, is_active)
+            # 1. Process Candle Fetching for all instruments in active_instruments table + pairs
+            for instrument in all_instruments:
+                process_instrument_candles(instrument)
+
+            # 2. Run AI Pipeline only for ACTIVE instruments if interval has passed
+            for instrument in all_instruments:
+                is_active = active_statuses.get(instrument, False)
+                if not is_active:
+                    continue
+
+                last_run = last_ai_run_time.get(instrument, 0)
+                if (current_time - last_run) >= settings.loop_interval_seconds:
+                    process_instrument_ai(instrument, cycle_id, analyst, risk_mgr, portfolio_mgr)
+                    last_ai_run_time[instrument] = current_time
+                else:
+                    print(f"\n[{instrument}] Skipping AI (last run {current_time - last_run:.0f}s ago).")
 
         except Exception as e:
             print(f"[SYSTEM ERROR] {e}")
 
-        print(f"\n--- Cycle complete. Sleeping for {settings.loop_interval_seconds}s ---")
-        time.sleep(settings.loop_interval_seconds)
+        print(f"\n--- Cycle complete. Sleeping for {CANDLE_FETCH_INTERVAL}s ---")
+        time.sleep(CANDLE_FETCH_INTERVAL)
 
 if __name__ == "__main__":
     main_loop()
