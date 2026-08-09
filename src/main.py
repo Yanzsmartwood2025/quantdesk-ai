@@ -43,7 +43,7 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
     print(f"\n[PIPELINE] Processing {instrument}...")
 
     # 1. Fetch Multi-Timeframe Data
-    candles = deriv.get_multi_timeframe_candles(instrument, timeframes=["D1", "H4", "H1"], count=20)
+    candles = deriv.get_multi_timeframe_candles(instrument, timeframes=["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count=20)
     if not any(candles.values()):
         print(f"[{instrument}] No candle data fetched. Skipping.")
         return

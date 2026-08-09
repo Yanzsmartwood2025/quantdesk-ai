@@ -17,6 +17,17 @@ class TechAnalystAgent(BaseAgent):
             "You are an expert Technical Analyst for a forex trading desk. "
             "Your job is to analyze multi-timeframe price data (candles) and identify trends, key levels, and actionable setups. "
             "You must output a strictly formatted JSON conforming to the requested schema. "
+            "IMPORTANT: ALL fields in the schema are mandatory and MUST be present in your JSON output. "
+            "You must not omit any fields. Even if you are unsure, provide your best estimate or a default value for that type. "
+            "Example valid output:\n"
+            "{\n"
+            '  "trend": "BULLISH",\n'
+            '  "key_support": 1.1050,\n'
+            '  "key_resistance": 1.1120,\n'
+            '  "setup_type": "BREAKOUT_BULLISH",\n'
+            '  "confidence": 0.85,\n'
+            '  "reasoning": "Strong bullish momentum across D1 and H4, breaking resistance on H1."\n'
+            "}\n"
             "Focus on confluence across the provided timeframes (e.g. Daily trend aligning with 1H entry setup)."
         )
         from src.config import settings
