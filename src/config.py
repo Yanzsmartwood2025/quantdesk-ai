@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     deriv_api_token: str = ""
 
     # LLM APIs
+    groq_model: str = "groq/openai/gpt-oss-120b"
     groq_api_key_1: str = ""
     groq_api_key_2: str = ""
     mistral_api_key_1: str = ""
