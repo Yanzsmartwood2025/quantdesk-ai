@@ -39,8 +39,8 @@ def update_memory_from_closed_trades():
             trade_id=trade_id
         )
 
-def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent, risk_mgr: RiskManagerAgent, portfolio_mgr: PortfolioManagerAgent):
-    print(f"\n[PIPELINE] Processing {instrument}...")
+def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent, risk_mgr: RiskManagerAgent, portfolio_mgr: PortfolioManagerAgent, is_active: bool):
+    print(f"\n[PIPELINE] Processing {instrument} (Active: {is_active})...")
 
     # 1. Fetch Multi-Timeframe Data
     candles = deriv.get_multi_timeframe_candles(instrument, timeframes=["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count=20)
@@ -51,6 +51,10 @@ def process_instrument(instrument: str, cycle_id: str, analyst: TechAnalystAgent
     # Save the fetched candles to DB
     print(f"[{instrument}] Saving recent candles to database...")
     db_client.save_candles(instrument, candles)
+
+    if not is_active:
+        print(f"[{instrument}] Instrument is paused. Skipping AI analysis.")
+        return
 
     # Extract current price for the portfolio manager
     current_price = 0.0
@@ -140,13 +144,18 @@ def main_loop():
             # Sync memory first
             update_memory_from_closed_trades()
 
+            # Fetch active statuses for all instruments
+            active_statuses = db_client.get_active_instruments_statuses()
+
             # Process each pair
             for pair in settings.parsed_pairs:
-                process_instrument(pair, cycle_id, analyst, risk_mgr, portfolio_mgr)
+                is_active = active_statuses.get(pair, False)
+                process_instrument(pair, cycle_id, analyst, risk_mgr, portfolio_mgr, is_active)
 
             # Process each synthetic instrument
             for synth in settings.parsed_synthetic_instruments:
-                process_instrument(synth, cycle_id, analyst, risk_mgr, portfolio_mgr)
+                is_active = active_statuses.get(synth, False)
+                process_instrument(synth, cycle_id, analyst, risk_mgr, portfolio_mgr, is_active)
 
         except Exception as e:
             print(f"[SYSTEM ERROR] {e}")

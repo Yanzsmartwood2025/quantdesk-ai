@@ -48,3 +48,46 @@ CREATE TABLE IF NOT EXISTS market_candles (
 
 CREATE INDEX idx_market_candles_instrument_timeframe ON market_candles(instrument, timeframe);
 CREATE INDEX idx_market_candles_timestamp ON market_candles(timestamp);
+
+-- Table for tracking which instruments the AI should process
+CREATE TABLE IF NOT EXISTS active_instruments (
+    instrument VARCHAR(20) PRIMARY KEY,
+    category VARCHAR(20) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT false,
+    activated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Enable RLS and setup policies for active_instruments
+ALTER TABLE active_instruments ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access to active_instruments
+CREATE POLICY "Allow public read access to active_instruments" ON active_instruments
+    FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+-- Allow public updates to is_active and activated_at ONLY on active_instruments
+CREATE POLICY "Allow public updates to active_instruments" ON active_instruments
+    FOR UPDATE
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);
+
+-- Insert baseline instruments for Forex
+INSERT INTO active_instruments (instrument, category, is_active) VALUES
+    ('EUR_USD', 'Forex', false),
+    ('GBP_USD', 'Forex', false),
+    ('USD_JPY', 'Forex', false),
+    ('AUD_USD', 'Forex', false),
+    ('USD_CAD', 'Forex', false),
+    ('USD_CHF', 'Forex', false),
+    ('NZD_USD', 'Forex', false)
+ON CONFLICT (instrument) DO NOTHING;
+
+-- Insert baseline instruments for Synthetics
+INSERT INTO active_instruments (instrument, category, is_active) VALUES
+    ('R_75', 'Sintéticos', false),
+    ('R_100', 'Sintéticos', false),
+    ('BOOM1000', 'Sintéticos', false),
+    ('CRASH1000', 'Sintéticos', false)
+ON CONFLICT (instrument) DO NOTHING;

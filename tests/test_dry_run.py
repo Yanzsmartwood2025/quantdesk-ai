@@ -100,7 +100,7 @@ class TestDryRun(unittest.TestCase):
         # Execute the process for one instrument
         print("\n--- Starting Dry Run Simulation ---")
         try:
-            process_instrument("EUR_USD", cycle_id, analyst, risk_mgr, portfolio_mgr)
+            process_instrument("EUR_USD", cycle_id, analyst, risk_mgr, portfolio_mgr, True)
             success = True
         except Exception as e:
             print(f"Exception during dry run: {e}")

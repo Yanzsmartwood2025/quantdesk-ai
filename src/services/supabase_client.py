@@ -143,5 +143,18 @@ class SupabaseService:
             print(f"Error fetching memory stats: {e}")
             return {"total": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
 
+    def get_active_instruments_statuses(self) -> Dict[str, bool]:
+        """Fetches the active status of all instruments."""
+        if not self.is_configured:
+            return {}
+
+        try:
+            response = self.client.table("active_instruments").select("instrument, is_active").execute()
+            data = response.data
+            return {row["instrument"]: row["is_active"] for row in data}
+        except Exception as e:
+            print(f"Error fetching active instruments statuses: {e}")
+            return {}
+
 # Global instance
 db_client = SupabaseService()
