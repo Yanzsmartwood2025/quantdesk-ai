@@ -8,27 +8,30 @@ import { AgentStatusCard } from './AgentStatusCard';
 import { ReasoningFeed } from './ReasoningFeed';
 import { ChartWidget } from './ChartWidget';
 import { ThemeToggle } from '../ThemeToggle';
-import { InstrumentSelector } from './InstrumentSelector';
+import { InstrumentSelector, InstrumentGroup } from './InstrumentSelector';
 
-const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY', 'AUD_USD', 'USD_CAD', 'USD_CHF', 'NZD_USD'];
-const SYNTHETIC_INSTRUMENTS = ['R_75', 'R_100', 'BOOM1000', 'CRASH1000'];
 const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
 
-const instrumentLabels: Record<string, string> = {
-  'R_75': 'Volatility 75',
-  'R_100': 'Volatility 100',
-  'BOOM1000': 'Boom 1000',
-  'CRASH1000': 'Crash 1000'
-};
+// Hardcoded for presentation when DB is empty, but overridden by DB
+const DEFAULT_FOREX = ['EUR_USD', 'GBP_USD', 'USD_JPY', 'AUD_USD', 'USD_CAD', 'USD_CHF', 'NZD_USD'];
+
+const TIMEFRAMES_DISPLAY = ['1m', '5m', '15m', '30m', '1H', '4H', '1D'];
+const TIMEFRAMES_INTERNAL = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
 
 export function Dashboard() {
   const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
-  const [instrument, setInstrument] = useState(AVAILABLE_INSTRUMENTS[0]);
-  const [timeframes, setTimeframes] = useState<string[]>([]);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<string>('');
+  const [instrument, setInstrument] = useState(DEFAULT_FOREX[0]);
+
+  // Data for selector
+  const [forexInstruments, setForexInstruments] = useState<string[]>(DEFAULT_FOREX);
+  const [syntheticGroups, setSyntheticGroups] = useState<InstrumentGroup[]>([]);
+
+  const [timeframes, setTimeframes] = useState<string[]>([]); // Display values
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>(''); // Display value ('1H')
   const [candles, setCandles] = useState<MarketCandle[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
 
   // Active states for agents
   const [analystActive, setAnalystActive] = useState(false);
@@ -38,101 +41,188 @@ export function Dashboard() {
   // Active Instrument state
   const [isInstrumentActive, setIsInstrumentActive] = useState(false);
 
-  // Handle category change
+  // Load active instruments from DB on mount
   useEffect(() => {
-    if (category === 'Forex') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (!AVAILABLE_INSTRUMENTS.includes(instrument)) setInstrument(AVAILABLE_INSTRUMENTS[0]);
-    } else if (category === 'Sintéticos') {
+    const fetchInstruments = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('active_instruments')
+          .select('instrument, category');
 
-      if (!SYNTHETIC_INSTRUMENTS.includes(instrument)) setInstrument(SYNTHETIC_INSTRUMENTS[0]);
-    }
-  }, [category, instrument]);
+        if (error) {
+          console.error("Failed to load instruments:", error);
+          // Set some fallback mock data so we can verify the UI without DB
+          setSyntheticGroups([
+             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
+             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
+          ]);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const forex: string[] = [];
+          const synthMap: Record<string, string[]> = {};
+
+          data.forEach(item => {
+            if (item.category === 'Forex') {
+              forex.push(item.instrument);
+            } else {
+              if (!synthMap[item.category]) {
+                synthMap[item.category] = [];
+              }
+              synthMap[item.category].push(item.instrument);
+            }
+          });
+
+          if (forex.length > 0) setForexInstruments(forex);
+
+          const groups: InstrumentGroup[] = Object.keys(synthMap).map(key => ({
+            label: key,
+            items: synthMap[key].sort()
+          }));
+
+          // Sort groups alphabetically
+          groups.sort((a, b) => a.label.localeCompare(b.label));
+          setSyntheticGroups(groups);
+        } else {
+          // Mock for presentation if empty
+          setSyntheticGroups([
+             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
+             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
+          ]);
+        }
+      } catch (err) {
+         console.error("Supabase fetch error", err);
+         setSyntheticGroups([
+             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
+             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
+          ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInstruments();
+  }, []);
+
+  // Use an effect to sync the selected instrument ONLY when category changes to a new one
+  // and the current instrument isn't in that category. This fixes the sync state warning.
+  useEffect(() => {
+    const syncInstrument = () => {
+      if (category === 'Forex' && !forexInstruments.includes(instrument)) {
+        setInstrument(forexInstruments[0] || 'EUR_USD');
+      } else if (category === 'Sintéticos') {
+        const allSynths = syntheticGroups.flatMap(g => g.items);
+        if (allSynths.length > 0 && !allSynths.includes(instrument)) {
+          setInstrument(allSynths[0]);
+        }
+      }
+    };
+    syncInstrument();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, forexInstruments, syntheticGroups]);
 
   // Initial Data Fetch
   useEffect(() => {
+    if (loading) return;
+
     const fetchTimeframesAndData = async () => {
-      setLoading(true);
+      setDataLoading(true);
 
-      // 1. Fetch available timeframes for this instrument
-      const { data: timeframeData, error: timeframeError } = await supabase
-        .from('market_candles')
-        .select('timeframe')
-        .eq('instrument', instrument);
+      try {
+        // 1. Fetch available timeframes for this instrument
+        const { data: timeframeData, error: timeframeError } = await supabase
+          .from('market_candles')
+          .select('timeframe')
+          .eq('instrument', instrument);
 
-      if (timeframeError) {
-        console.error("Failed to load timeframes:", timeframeError);
+        if (timeframeError) {
+          console.error("Failed to load timeframes:", timeframeError);
+        }
+
+        let availableTimeframes: string[] = [];
+        if (timeframeData && timeframeData.length > 0) {
+          const uniqueInternalTimeframes = Array.from(new Set(timeframeData.map(d => d.timeframe))).filter(Boolean);
+
+          // Map internal to display and filter only the 7 allowed timeframes
+          availableTimeframes = uniqueInternalTimeframes
+            .map(tf => {
+              const index = TIMEFRAMES_INTERNAL.indexOf(tf);
+              return index >= 0 ? TIMEFRAMES_DISPLAY[index] : null;
+            })
+            .filter(Boolean) as string[];
+
+          // Sort timeframes logically
+          availableTimeframes.sort((a, b) => TIMEFRAMES_DISPLAY.indexOf(a) - TIMEFRAMES_DISPLAY.indexOf(b));
+        }
+
+        setTimeframes(availableTimeframes);
+
+        let targetTimeframeDisplay = selectedTimeframe;
+        if (availableTimeframes.length > 0 && (!selectedTimeframe || !availableTimeframes.includes(selectedTimeframe))) {
+          targetTimeframeDisplay = availableTimeframes[0];
+          setSelectedTimeframe(targetTimeframeDisplay);
+        }
+
+        // Convert display timeframe to internal before query
+        const tfIndex = TIMEFRAMES_DISPLAY.indexOf(targetTimeframeDisplay);
+        const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
+
+        // 2. Fetch candles based on instrument and selected/target timeframe
+        let candlesQuery = supabase
+          .from('market_candles')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('timestamp', { ascending: false })
+          .limit(200);
+
+        if (targetTimeframeInternal) {
+          candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
+        }
+
+        const { data: candlesData, error: candlesError } = await candlesQuery;
+
+        if (candlesData) {
+          setCandles(candlesData);
+        }
+        if (candlesError) console.error("Failed to load candles:", candlesError);
+
+        // 3. Fetch initial traces
+        const { data: tracesData, error: tracesError } = await supabase
+          .from('agent_traces')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        // 4. Fetch active state
+        const { data: activeData, error: activeError } = await supabase
+          .from('active_instruments')
+          .select('is_active')
+          .eq('instrument', instrument)
+          .single();
+
+        if (activeData) {
+          setIsInstrumentActive(activeData.is_active);
+        } else {
+          setIsInstrumentActive(false); // default
+        }
+        if (activeError) console.error("Failed to load active status:", activeError);
+
+        if (tracesData) {
+          setTraces(tracesData);
+        }
+        if (tracesError) console.error("Failed to load traces:", tracesError);
+      } catch (err) {
+        console.error("Error during initial data fetch:", err);
+      } finally {
+        setDataLoading(false);
       }
-
-      let availableTimeframes: string[] = [];
-      if (timeframeData && timeframeData.length > 0) {
-        const uniqueTimeframes = Array.from(new Set(timeframeData.map(d => d.timeframe))).filter(Boolean);
-        // Sort timeframes logically if possible, otherwise keep as is
-        const orderMap: Record<string, number> = { '1m': 1, '5m': 2, '15m': 3, '1H': 4, '4H': 5, '1D': 6 };
-        uniqueTimeframes.sort((a, b) => (orderMap[a] || 99) - (orderMap[b] || 99));
-
-        availableTimeframes = uniqueTimeframes;
-      }
-
-      setTimeframes(availableTimeframes);
-
-      let targetTimeframe = selectedTimeframe;
-      if (availableTimeframes.length > 0 && (!selectedTimeframe || !availableTimeframes.includes(selectedTimeframe))) {
-        targetTimeframe = availableTimeframes[0];
-        setSelectedTimeframe(targetTimeframe);
-      }
-
-      // 2. Fetch candles based on instrument and selected/target timeframe
-      let candlesQuery = supabase
-        .from('market_candles')
-        .select('*')
-        .eq('instrument', instrument)
-        .order('timestamp', { ascending: false })
-        .limit(200);
-
-      if (targetTimeframe) {
-        candlesQuery = candlesQuery.eq('timeframe', targetTimeframe);
-      }
-
-      const { data: candlesData, error: candlesError } = await candlesQuery;
-
-      if (candlesData) {
-        setCandles(candlesData);
-      }
-      if (candlesError) console.error("Failed to load candles:", candlesError);
-
-      // 3. Fetch initial traces
-      const { data: tracesData, error: tracesError } = await supabase
-        .from('agent_traces')
-        .select('*')
-        .eq('instrument', instrument)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      // 4. Fetch active state
-      const { data: activeData, error: activeError } = await supabase
-        .from('active_instruments')
-        .select('is_active')
-        .eq('instrument', instrument)
-        .single();
-
-      if (activeData) {
-        setIsInstrumentActive(activeData.is_active);
-      } else {
-        setIsInstrumentActive(false); // default
-      }
-      if (activeError) console.error("Failed to load active status:", activeError);
-
-      if (tracesData) {
-        setTraces(tracesData);
-      }
-      if (tracesError) console.error("Failed to load traces:", tracesError);
-
-      setLoading(false);
     };
 
     fetchTimeframesAndData();
-  }, [instrument, selectedTimeframe]);
+  }, [instrument, selectedTimeframe, loading]);
 
   // Supabase Realtime Subscriptions
   useEffect(() => {
@@ -140,65 +230,72 @@ export function Dashboard() {
     // To strictly filter by instrument AND timeframe in real-time we must handle it client-side.
     // We subscribe to the instrument and filter the timeframe inside the callback.
 
-    const channel = supabase
-      .channel(`room_${instrument}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'market_candles',
-          filter: `instrument=eq.${instrument}`,
-        },
-        (payload) => {
-          const newCandle = payload.new as MarketCandle;
-          if (!selectedTimeframe || newCandle.timeframe === selectedTimeframe) {
-             setCandles((current) => [newCandle, ...current]);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'agent_traces',
-          filter: `instrument=eq.${instrument}`,
-        },
-        (payload) => {
-          const newTrace = payload.new as AgentTrace;
-          setTraces((current) => [newTrace, ...current]);
+    const tfIndex = TIMEFRAMES_DISPLAY.indexOf(selectedTimeframe);
+    const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
 
-          // Trigger animations based on role
-          if (newTrace.agent_role === 'analyst') {
-            setAnalystActive(true);
-            setTimeout(() => setAnalystActive(false), 3000);
-          } else if (newTrace.agent_role === 'risk_manager') {
-            setRiskActive(true);
-            setTimeout(() => setRiskActive(false), 3000);
-          } else if (newTrace.agent_role === 'portfolio_manager') {
-            setPortfolioActive(true);
-            setTimeout(() => setPortfolioActive(false), 3000);
+    try {
+      const channel = supabase
+        .channel(`room_${instrument}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'market_candles',
+            filter: `instrument=eq.${instrument}`,
+          },
+          (payload) => {
+            const newCandle = payload.new as MarketCandle;
+            if (!targetTimeframeInternal || newCandle.timeframe === targetTimeframeInternal) {
+               setCandles((current) => [newCandle, ...current]);
+            }
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'active_instruments',
-          filter: `instrument=eq.${instrument}`,
-        },
-        (payload) => {
-          setIsInstrumentActive(payload.new.is_active);
-        }
-      )
-      .subscribe();
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'agent_traces',
+            filter: `instrument=eq.${instrument}`,
+          },
+          (payload) => {
+            const newTrace = payload.new as AgentTrace;
+            setTraces((current) => [newTrace, ...current]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+            // Trigger animations based on role
+            if (newTrace.agent_role === 'analyst') {
+              setAnalystActive(true);
+              setTimeout(() => setAnalystActive(false), 3000);
+            } else if (newTrace.agent_role === 'risk_manager') {
+              setRiskActive(true);
+              setTimeout(() => setRiskActive(false), 3000);
+            } else if (newTrace.agent_role === 'portfolio_manager') {
+              setPortfolioActive(true);
+              setTimeout(() => setPortfolioActive(false), 3000);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'active_instruments',
+            filter: `instrument=eq.${instrument}`,
+          },
+          (payload) => {
+            setIsInstrumentActive(payload.new.is_active);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (err) {
+      console.error("Error setting up realtime subscriptions:", err);
+    }
   }, [instrument, selectedTimeframe]);
 
   const toggleInstrumentActive = async () => {
@@ -206,25 +303,43 @@ export function Dashboard() {
     // Optimistic update
     setIsInstrumentActive(newState);
 
-    const { error } = await supabase
-      .from('active_instruments')
-      .update({ is_active: newState, activated_at: newState ? new Date().toISOString() : null })
-      .eq('instrument', instrument);
+    try {
+      const { error } = await supabase
+        .from('active_instruments')
+        .update({ is_active: newState, activated_at: newState ? new Date().toISOString() : null })
+        .eq('instrument', instrument);
 
-    if (error) {
-      console.error("Failed to update active status:", error);
-      // Revert on error
+      if (error) {
+        console.error("Failed to update active status:", error);
+        // Revert on error
+        setIsInstrumentActive(!newState);
+      }
+    } catch (err) {
+      console.error("Supabase update error:", err);
       setIsInstrumentActive(!newState);
     }
   };
 
   // Derived state for empty state
-  const isDataEmpty = !loading && candles.length === 0 && traces.length === 0;
+  // We only show empty state if we are done loading AND we actually have 0 candles/traces
+  const isDataEmpty = !dataLoading && !loading && candles.length === 0 && traces.length === 0;
 
   // Last active times
   const lastAnalyst = traces.find(t => t.agent_role === 'analyst')?.created_at;
   const lastRisk = traces.find(t => t.agent_role === 'risk_manager')?.created_at;
   const lastPortfolio = traces.find(t => t.agent_role === 'portfolio_manager')?.created_at;
+
+  const getInstrumentLabel = (inst: string) => {
+    if (category === 'Forex') return inst.replace('_', '/');
+    // For synthetics we can keep the internal name or map known ones
+    const labels: Record<string, string> = {
+      'R_75': 'Volatility 75',
+      'R_100': 'Volatility 100',
+      'BOOM1000': 'Boom 1000',
+      'CRASH1000': 'Crash 1000'
+    };
+    return labels[inst] || inst;
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 p-4 md:p-6 font-sans transition-colors duration-300">
@@ -262,10 +377,11 @@ export function Dashboard() {
             <div className="flex items-center gap-3 w-full md:w-auto">
               <label className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">Instrumento:</label>
               <InstrumentSelector
-                instruments={category === 'Forex' ? AVAILABLE_INSTRUMENTS : SYNTHETIC_INSTRUMENTS}
+                instruments={category === 'Forex' ? forexInstruments : []}
+                groups={category === 'Sintéticos' ? syntheticGroups : []}
                 selectedInstrument={instrument}
                 onSelect={setInstrument}
-                getLabel={(inst) => category === 'Forex' ? inst.replace('_', '/') : (instrumentLabels[inst] || inst)}
+                getLabel={getInstrumentLabel}
               />
               <button
                 onClick={toggleInstrumentActive}
@@ -288,12 +404,48 @@ export function Dashboard() {
 
       {(category !== 'Forex' && category !== 'Sintéticos') ? (
         <EmptyState message={`${category} próximamente...`} />
-      ) : loading ? (
+      ) : (loading || dataLoading) ? (
          <div className="flex items-center justify-center h-[60vh]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
          </div>
       ) : isDataEmpty ? (
-        <EmptyState message={`Esperando las primeras velas y señales para ${instrumentLabels[instrument] || instrument.replace('_', '/')}...`} />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
+          {/* We'll render empty states or empty containers here so it matches the UI structure */}
+          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
+            <div className="flex flex-col gap-3">
+              <AgentStatusCard
+                role="analyst"
+                title="Analista Técnico"
+                description="Identifica setups de mercado"
+                isActive={analystActive}
+                lastActiveAt={lastAnalyst}
+                isPaused={!isInstrumentActive}
+              />
+              <AgentStatusCard
+                role="risk_manager"
+                title="Gestor de Riesgo"
+                description="Evalúa riesgo/recompensa"
+                isActive={riskActive}
+                lastActiveAt={lastRisk}
+                isPaused={!isInstrumentActive}
+              />
+              <AgentStatusCard
+                role="portfolio_manager"
+                title="Portfolio Manager"
+                description="Decisión final de ejecución"
+                isActive={portfolioActive}
+                lastActiveAt={lastPortfolio}
+                isPaused={!isInstrumentActive}
+              />
+            </div>
+            <div className="flex-1 overflow-hidden mt-2 min-h-[300px] lg:min-h-0 flex flex-col">
+              <ReasoningFeed traces={traces} isPaused={!isInstrumentActive} />
+            </div>
+          </div>
+          <div className="lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
+            <EmptyState message={`Esperando las primeras velas y señales para ${getInstrumentLabel(instrument)}...`} />
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
           {/* Left Column: Agents & Feed */}
