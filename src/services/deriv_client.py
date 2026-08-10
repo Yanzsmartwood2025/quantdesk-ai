@@ -110,7 +110,7 @@ class DerivClient:
     def get_active_synthetics(self) -> List[Dict[str, Any]]:
         """Obtiene la lista completa de índices sintéticos de Deriv."""
         req = {
-            "active_symbols": "brief",
+            "active_symbols": "full",
             "product_type": "basic"
         }
         data = self._send_receive(req)

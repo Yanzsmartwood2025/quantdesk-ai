@@ -52,7 +52,7 @@ CREATE INDEX idx_market_candles_timestamp ON market_candles(timestamp);
 -- Table for tracking which instruments the AI should process
 CREATE TABLE IF NOT EXISTS active_instruments (
     instrument VARCHAR(20) PRIMARY KEY,
-    category VARCHAR(20) NOT NULL,
+    category VARCHAR(50) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT false,
     activated_at TIMESTAMP WITH TIME ZONE
 );
