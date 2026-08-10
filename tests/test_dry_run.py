@@ -85,6 +85,7 @@ class TestDryRun(unittest.TestCase):
         import uuid
 
         # Mock DB recent candles since AI pulls from DB now
+        mock_db_client.get_latest_candle_time.return_value = 0.0
         mock_db_client.get_recent_candles.return_value = {
             "D1": [{"close": 1.1000}],
             "H4": [{"close": 1.1020}],

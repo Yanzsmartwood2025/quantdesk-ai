@@ -39,10 +39,12 @@ def update_memory_from_closed_trades():
             trade_id=trade_id
         )
 
-def process_instrument_candles(instrument: str):
+def process_instrument_candles(instrument: str, timeframes: List[str] = None):
     """Fetches and saves multi-timeframe candles to DB without running AI."""
-    print(f"\n[CANDLE FETCH] Fetching candles for {instrument}...")
-    candles = deriv.get_multi_timeframe_candles(instrument, timeframes=["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count=20)
+    if not timeframes:
+        timeframes = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"]
+    print(f"\n[CANDLE FETCH] Fetching candles for {instrument} on {timeframes}...")
+    candles = deriv.get_multi_timeframe_candles(instrument, timeframes=timeframes, count=20)
     if not any(candles.values()):
         print(f"[{instrument}] No candle data fetched.")
         return
@@ -133,7 +135,7 @@ def main_loop():
     print("QuantDesk AI Pipeline Started")
     print(f"Trading Enabled: {settings.trading_enabled}")
     print(f"AI Loop Interval: {settings.loop_interval_seconds} seconds")
-    print("Candle Fetch Interval: 300 seconds (5 minutes)")
+    print("Candle Fetch Interval: 60 seconds (1 minute base loop, dynamic fetching)")
     print(f"Pairs: {settings.parsed_pairs}")
 
     # Sync synthetics on startup
@@ -150,7 +152,17 @@ def main_loop():
     portfolio_mgr = PortfolioManagerAgent()
 
     last_ai_run_time = {}
-    CANDLE_FETCH_INTERVAL = 300 # 5 minutes
+    CANDLE_FETCH_INTERVAL = 60 # 1 minute (shortest timeframe)
+
+    TF_INTERVALS = {
+        "M1": 60,
+        "M5": 300,
+        "M15": 900,
+        "M30": 1800,
+        "H1": 3600,
+        "H4": 14400,
+        "D1": 86400
+    }
 
     while True:
         cycle_id = str(uuid.uuid4())
@@ -168,8 +180,18 @@ def main_loop():
             all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
 
             # 1. Process Candle Fetching for all instruments in active_instruments table + pairs
+            # Each timeframe has its own refresh rate.
             for instrument in all_instruments:
-                process_instrument_candles(instrument)
+                tfs_to_fetch = []
+                for tf, interval in TF_INTERVALS.items():
+                    latest_time = db_client.get_latest_candle_time(instrument, tf)
+                    if (current_time - latest_time) >= interval:
+                        tfs_to_fetch.append(tf)
+
+                if tfs_to_fetch:
+                    process_instrument_candles(instrument, tfs_to_fetch)
+                else:
+                    print(f"[{instrument}] No timeframes due for refresh.")
 
             # 2. Run AI Pipeline only for ACTIVE instruments if interval has passed
             for instrument in all_instruments:

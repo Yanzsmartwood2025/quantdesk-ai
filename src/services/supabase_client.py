@@ -71,6 +71,31 @@ class SupabaseService:
             if "duplicate key value" not in str(e):
                 print(f"Error saving trade outcome to Supabase: {e}")
 
+
+    def get_latest_candle_time(self, instrument: str, timeframe: str) -> float:
+        """Fetches the timestamp (in epoch seconds) of the latest candle for an instrument and timeframe."""
+        if not self.is_configured:
+            return 0.0
+
+        try:
+            response = self.client.table("market_candles") \
+                .select("timestamp") \
+                .eq("instrument", instrument) \
+                .eq("timeframe", timeframe) \
+                .order("timestamp", desc=True) \
+                .limit(1) \
+                .execute()
+
+            if response.data and len(response.data) > 0:
+                iso_str = response.data[0]["timestamp"]
+                # Convert ISO string back to epoch
+                dt = datetime.fromisoformat(iso_str)
+                return dt.timestamp()
+            return 0.0
+        except Exception as e:
+            print(f"Error fetching latest candle time for {instrument} {timeframe}: {e}")
+            return 0.0
+
     def get_recent_candles(self, instrument: str, timeframes: list = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"], limit: int = 20) -> Dict[str, Any]:
         """Fetches recent candles from Supabase for given timeframes."""
         if not self.is_configured:
