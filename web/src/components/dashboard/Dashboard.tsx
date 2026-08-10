@@ -131,32 +131,8 @@ export function Dashboard() {
       setDataLoading(true);
 
       try {
-        // 1. Fetch available timeframes for this instrument
-        const { data: timeframeData, error: timeframeError } = await supabase
-          .from('market_candles')
-          .select('timeframe')
-          .eq('instrument', instrument);
-
-        if (timeframeError) {
-          console.error("Failed to load timeframes:", timeframeError);
-        }
-
-        let availableTimeframes: string[] = [];
-        if (timeframeData && timeframeData.length > 0) {
-          const uniqueInternalTimeframes = Array.from(new Set(timeframeData.map(d => d.timeframe))).filter(Boolean);
-
-          // Map internal to display and filter only the 7 allowed timeframes
-          availableTimeframes = uniqueInternalTimeframes
-            .map(tf => {
-              const index = TIMEFRAMES_INTERNAL.indexOf(tf);
-              return index >= 0 ? TIMEFRAMES_DISPLAY[index] : null;
-            })
-            .filter(Boolean) as string[];
-
-          // Sort timeframes logically
-          availableTimeframes.sort((a, b) => TIMEFRAMES_DISPLAY.indexOf(a) - TIMEFRAMES_DISPLAY.indexOf(b));
-        }
-
+        // 1. We ALWAYS support these exactly 7 timeframes as configured by backend
+        const availableTimeframes = [...TIMEFRAMES_DISPLAY];
         setTimeframes(availableTimeframes);
 
         let targetTimeframeDisplay = selectedTimeframe;
