@@ -29,6 +29,7 @@ export function Dashboard() {
   const [timeframes, setTimeframes] = useState<string[]>([]); // Display values
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(''); // Display value ('1H')
   const [candles, setCandles] = useState<MarketCandle[]>([]);
+  const [lastUpdatedCandle, setLastUpdatedCandle] = useState<MarketCandle | null>(null);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
   const [loading, setLoading] = useState(false);
   const [isTracesLoading, setIsTracesLoading] = useState(false);
@@ -185,6 +186,7 @@ export function Dashboard() {
        setIsInitialCandlesLoading(true);
        setCandles([]); // Clear old candles to avoid flashing stale data
     }
+    setLastUpdatedCandle(null); // Clear live updates on TF/Instrument change
 
     const fetchCandles = async () => {
       try {
@@ -236,15 +238,17 @@ export function Dashboard() {
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: '*',
             schema: 'public',
             table: 'market_candles',
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
+            // Support both INSERT and UPDATE
+            if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return;
             const newCandle = payload.new as MarketCandle;
             if (!targetTimeframeInternal || newCandle.timeframe === targetTimeframeInternal) {
-               setCandles((current) => [newCandle, ...current]);
+               setLastUpdatedCandle(newCandle);
             }
           }
         )
@@ -502,7 +506,7 @@ export function Dashboard() {
               </div>
             )}
             <div className="flex-1 min-h-[400px]">
-              <ChartWidget candles={candles} traces={traces} />
+              <ChartWidget candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} />
             </div>
           </div>
         </div>

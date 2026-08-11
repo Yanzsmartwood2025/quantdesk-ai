@@ -8,9 +8,10 @@ import { useTheme } from 'next-themes';
 interface ChartWidgetProps {
   candles: MarketCandle[];
   traces: AgentTrace[];
+  lastUpdatedCandle?: MarketCandle | null;
 }
 
-export function ChartWidget({ candles, traces }: ChartWidgetProps) {
+export function ChartWidget({ candles, traces, lastUpdatedCandle }: ChartWidgetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -69,7 +70,7 @@ export function ChartWidget({ candles, traces }: ChartWidgetProps) {
     };
   }, [resolvedTheme]);
 
-  // Update data and markers when props change
+  // Effect A: Initial Candles Load
   useEffect(() => {
     if (!seriesRef.current || candles.length === 0) return;
 
@@ -95,6 +96,27 @@ export function ChartWidget({ candles, traces }: ChartWidgetProps) {
     }
 
     seriesRef.current.setData(uniqueChartData);
+    chartRef.current?.timeScale().fitContent();
+  }, [candles, resolvedTheme]);
+
+  // Effect B: Live Candle Updates
+  useEffect(() => {
+    if (!seriesRef.current || !lastUpdatedCandle) return;
+
+    const formattedCandle = {
+      time: (new Date(lastUpdatedCandle.timestamp).getTime() / 1000) as Time,
+      open: lastUpdatedCandle.open,
+      high: lastUpdatedCandle.high,
+      low: lastUpdatedCandle.low,
+      close: lastUpdatedCandle.close,
+    };
+
+    seriesRef.current.update(formattedCandle);
+  }, [lastUpdatedCandle]);
+
+  // Effect C: Traces/Markers Updates
+  useEffect(() => {
+    if (!seriesRef.current) return;
 
     // Filter portfolio manager traces for buy/sell actions
     const markers: SeriesMarker<Time>[] = traces
@@ -127,11 +149,7 @@ export function ChartWidget({ candles, traces }: ChartWidgetProps) {
       .sort((a, b) => (a.time as number) - (b.time as number));
 
     createSeriesMarkers(seriesRef.current, markers);
-
-    // Fit content
-    chartRef.current?.timeScale().fitContent();
-
-  }, [candles, traces, resolvedTheme]);
+  }, [traces, resolvedTheme]);
 
   return (
     <div className="w-full h-full bg-white dark:bg-[#131722] rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col transition-colors duration-300">
