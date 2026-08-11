@@ -103,7 +103,7 @@ class DerivClient:
     async def connect(self):
         """Establish persistent connection and start listening loop."""
         async with self._reconnect_lock:
-            if self.ws and not self.ws.closed:
+            if self.ws and self.ws.state.name not in ("CLOSED", "CLOSING"):
                 return
 
             self._connected.clear()
