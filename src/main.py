@@ -29,13 +29,22 @@ async def update_memory_from_closed_trades():
         client_ext = trade.get("clientExtensions", {})
         setup_type = client_ext.get("tag", "UNKNOWN_SETUP")
 
-        db_client.save_trade_outcome(
-            instrument=instrument,
-            setup_type=setup_type,
-            outcome=outcome,
-            pnl=realized_pl,
-            trade_id=trade_id
-        )
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    db_client.save_trade_outcome,
+                    instrument,
+                    setup_type,
+                    outcome,
+                    realized_pl,
+                    trade_id
+                ),
+                timeout=10.0
+            )
+        except asyncio.TimeoutError:
+            print(f"[SYSTEM ERROR] Timeout saving trade outcome for {trade_id}")
+        except Exception as e:
+            print(f"[SYSTEM ERROR] Failed to save trade outcome for {trade_id}: {e}")
 
 async def upsert_candles_loop():
     """Background loop that saves forming/closed candles to DB every 5 seconds."""
@@ -95,6 +104,10 @@ async def upsert_candles_loop():
                             asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict),
                             timeout=10.0
                         )
+        except asyncio.TimeoutError:
+            print("[CANDLE SYNC ERROR] Timeout saving candles to DB. Thread pool may be constrained.")
+            if closed_candles:
+                deriv.candles_to_flush.extend(closed_candles)
         except Exception as e:
             print(f"[CANDLE SYNC ERROR] {repr(e)}")
             # Put closed candles back into the queue so they aren't lost
@@ -108,7 +121,23 @@ async def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAna
     print(f"\n[AI PIPELINE] Processing {instrument}...")
 
     # 1. Fetch Multi-Timeframe Data from DB
-    candles = db_client.get_recent_candles(instrument, timeframes=["M1", "M5", "M15", "M30", "H1", "H4", "D1"], limit=20)
+    try:
+        candles = await asyncio.wait_for(
+            asyncio.to_thread(
+                db_client.get_recent_candles,
+                instrument,
+                ["M1", "M5", "M15", "M30", "H1", "H4", "D1"],
+                20
+            ),
+            timeout=10.0
+        )
+    except asyncio.TimeoutError:
+        print(f"[{instrument}] Timeout fetching candle data from DB. Skipping.")
+        return
+    except Exception as e:
+        print(f"[{instrument}] Error fetching candle data: {e}. Skipping.")
+        return
+
     if not any(candles.values()):
         print(f"[{instrument}] No candle data in DB. Skipping.")
         return
@@ -143,7 +172,17 @@ async def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAna
 
     # 4. Fetch Memory
     print(f"[{instrument}] Fetching memory for setup: {setup_type}...")
-    memory_stats = db_client.get_memory_stats(instrument, setup_type)
+    try:
+        memory_stats = await asyncio.wait_for(
+            asyncio.to_thread(db_client.get_memory_stats, instrument, setup_type),
+            timeout=10.0
+        )
+    except asyncio.TimeoutError:
+        print(f"[{instrument}] Timeout fetching memory stats. Proceeding with empty memory.")
+        memory_stats = {"total": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
+    except Exception as e:
+        print(f"[{instrument}] Error fetching memory stats: {e}. Proceeding with empty memory.")
+        memory_stats = {"total": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
 
     # 5. Portfolio Manager
     print(f"[{instrument}] Running Portfolio Manager...")
@@ -198,7 +237,15 @@ async def main_loop():
     print("Syncing synthetic indices from Deriv...")
     synthetics = await deriv.get_active_synthetics()
     if synthetics:
-        db_client.sync_synthetics(synthetics)
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(db_client.sync_synthetics, synthetics),
+                timeout=15.0
+            )
+        except asyncio.TimeoutError:
+            print("[SYSTEM ERROR] Timeout syncing synthetic indices to DB on startup.")
+        except Exception as e:
+            print(f"[SYSTEM ERROR] Error syncing synthetic indices: {e}")
     else:
         print("Warning: Could not fetch active synthetics from Deriv.")
     print("="*50)
@@ -224,7 +271,17 @@ async def main_loop():
             await update_memory_from_closed_trades()
 
             # Fetch active statuses for all instruments
-            active_statuses = db_client.get_active_instruments_statuses()
+            try:
+                active_statuses = await asyncio.wait_for(
+                    asyncio.to_thread(db_client.get_active_instruments_statuses),
+                    timeout=10.0
+                )
+            except asyncio.TimeoutError:
+                print("[SYSTEM ERROR] Timeout fetching active instruments statuses.")
+                active_statuses = {}
+            except Exception as e:
+                print(f"[SYSTEM ERROR] Failed to fetch active instruments statuses: {e}")
+                active_statuses = {}
 
             # All instruments that exist in active_statuses + parsed_pairs
             all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
