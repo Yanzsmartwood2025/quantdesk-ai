@@ -6,6 +6,7 @@ import time
 from typing import List, Dict, Any, Optional
 import websockets
 from src.config import settings
+from src.utils.task_logger import log_task_exception
 
 class DerivClient:
     def __init__(self):
@@ -121,7 +122,8 @@ class DerivClient:
 
                 # Start listener if not running or if it was cancelled
                 if not self._listen_task or self._listen_task.done():
-                    self._listen_task = asyncio.create_task(self._listen_loop())
+                    self._listen_task = asyncio.create_task(self._listen_loop(), name="deriv_listen_loop")
+                    self._listen_task.add_done_callback(log_task_exception)
 
                 # Resubscribe to active symbols if we are reconnecting
                 if self.active_subscriptions:
@@ -133,13 +135,21 @@ class DerivClient:
 
     async def _resubscribe_all(self):
         """Re-subscribe to ticks for all instruments after a reconnect."""
-        for symbol in list(self.active_subscriptions):
+        # Make a copy of the symbols to resubscribe to
+        symbols_to_resubscribe = list(self.active_subscriptions)
+        # Clear the set so that the pipeline calls to `subscribe_ticks` won't be ignored
+        self.active_subscriptions.clear()
+
+        for symbol in symbols_to_resubscribe:
             req = {
                 "ticks": symbol,
                 "subscribe": 1
             }
             # Fire and forget re-subscribe
-            asyncio.create_task(self._send_receive(req))
+            task = asyncio.create_task(self._send_receive(req), name=f"deriv_resubscribe_{symbol}")
+            task.add_done_callback(log_task_exception)
+            # Re-add immediately so we track what we've attempted to sub to
+            self.active_subscriptions.add(symbol)
 
     async def _listen_loop(self):
         """Continuously listens for messages on the WebSocket."""
@@ -311,7 +321,8 @@ class DerivClient:
                 "subscribe": 1
             }
             # We don't await the result, just send it
-            asyncio.create_task(self._send_receive(req))
+            task = asyncio.create_task(self._send_receive(req), name=f"deriv_subscribe_{deriv_symbol}")
+            task.add_done_callback(log_task_exception)
             print(f"[DERIV] Subscribed to ticks for {instrument} ({deriv_symbol})")
 
     async def get_active_synthetics(self) -> List[Dict[str, Any]]:
