@@ -1,7 +1,6 @@
 import json
 import httpx
 import asyncio
-import uuid
 import time
 from typing import List, Dict, Any, Optional
 import websockets
@@ -19,7 +18,8 @@ class DerivClient:
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self._reconnect_lock = asyncio.Lock()
         self._connected = asyncio.Event()
-        self._futures: Dict[str, asyncio.Future] = {}
+        self._futures: Dict[int, asyncio.Future] = {}
+        self._req_id_counter = 0
 
         # Background tasks
         self._listen_task: Optional[asyncio.Task] = None
@@ -191,7 +191,7 @@ class DerivClient:
 
             # Handle standard responses with req_id
             if "req_id" in data:
-                req_id = str(data["req_id"])
+                req_id = data["req_id"]
                 if req_id in self._futures:
                     if not self._futures[req_id].done():
                         self._futures[req_id].set_result(data)
@@ -280,7 +280,8 @@ class DerivClient:
 
         await self._connected.wait()
 
-        req_id = str(uuid.uuid4())
+        self._req_id_counter += 1
+        req_id = self._req_id_counter
         request_data["req_id"] = req_id
 
         loop = asyncio.get_running_loop()
@@ -341,8 +342,7 @@ class DerivClient:
     async def get_active_synthetics(self) -> List[Dict[str, Any]]:
         """Obtiene la lista completa de índices sintéticos de Deriv."""
         req = {
-            "active_symbols": "full",
-            "product_type": "basic"
+            "active_symbols": "full"
         }
         data = await self._send_receive(req)
         active_symbols = data.get("active_symbols", [])
