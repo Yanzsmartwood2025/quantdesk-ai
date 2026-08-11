@@ -244,6 +244,7 @@ export function Dashboard() {
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
+            console.log("[REALTIME] Market Candle Event received:", payload);
             // Support both INSERT and UPDATE
             if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return;
             const newCandle = payload.new as MarketCandle;
@@ -261,6 +262,7 @@ export function Dashboard() {
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
+            console.log("[REALTIME] Event received:", payload);
             const newTrace = payload.new as AgentTrace;
             setTraces((current) => [newTrace, ...current]);
 
