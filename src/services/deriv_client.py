@@ -185,6 +185,10 @@ class DerivClient:
         try:
             data = json.loads(message)
 
+            # Check for silent errors returned by the WebSocket
+            if "error" in data:
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [DERIV ERROR] WebSocket returned error: {data['error']} (Request: {data.get('echo_req')})")
+
             # Handle standard responses with req_id
             if "req_id" in data:
                 req_id = str(data["req_id"])
