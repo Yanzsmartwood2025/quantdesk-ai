@@ -9,6 +9,7 @@ from src.services.supabase_client import db_client
 from src.agents.analyst import TechAnalystAgent
 from src.agents.risk import RiskManagerAgent
 from src.agents.portfolio import PortfolioManagerAgent
+from src.utils.task_logger import log_task_exception
 
 async def update_memory_from_closed_trades():
     """Polls recently closed trades and updates Supabase memory."""
@@ -39,6 +40,7 @@ async def update_memory_from_closed_trades():
 async def upsert_candles_loop():
     """Background loop that saves forming/closed candles to DB every 5 seconds."""
     while True:
+        closed_candles = []
         try:
             # 1. First process any closed candles that were queued up
             closed_candles = deriv.candles_to_flush.copy()
@@ -66,9 +68,12 @@ async def upsert_candles_loop():
                     "is_closed": True
                 })
 
-            # Upsert closed candles using thread pool to avoid blocking the event loop
+            # Upsert closed candles using thread pool with wait_for to prevent silent hangs
             for instrument, db_candles_dict in flush_dict.items():
-                await asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict)
+                await asyncio.wait_for(
+                    asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict),
+                    timeout=10.0
+                )
 
             # 2. Then process the current forming candles
             if deriv.current_candles:
@@ -86,9 +91,15 @@ async def upsert_candles_loop():
                         }]
 
                     if db_candles_dict:
-                        await asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict)
+                        await asyncio.wait_for(
+                            asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict),
+                            timeout=10.0
+                        )
         except Exception as e:
-            print(f"[CANDLE SYNC ERROR] {e}")
+            print(f"[CANDLE SYNC ERROR] {repr(e)}")
+            # Put closed candles back into the queue so they aren't lost
+            if closed_candles:
+                deriv.candles_to_flush.extend(closed_candles)
 
         await asyncio.sleep(5)
 
@@ -193,7 +204,8 @@ async def main_loop():
     print("="*50)
 
     # Start the continuous candle upsert background loop
-    asyncio.create_task(upsert_candles_loop())
+    upsert_task = asyncio.create_task(upsert_candles_loop(), name="upsert_candles_loop")
+    upsert_task.add_done_callback(log_task_exception)
 
     analyst = TechAnalystAgent()
     risk_mgr = RiskManagerAgent()
