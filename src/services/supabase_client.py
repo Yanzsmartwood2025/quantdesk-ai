@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from src.config import settings
 
 class SupabaseService:
@@ -8,7 +8,12 @@ class SupabaseService:
         # Allow running without actual keys for local testing, though the client will fail on requests
         url = settings.supabase_url or "https://placeholder.supabase.co"
         key = settings.supabase_key or "placeholder_key"
-        self.client: Client = create_client(url, key)
+
+        # Configure hard timeouts (10 seconds) to prevent silent hangs
+        # The underlying httpx client used by supabase-py defaults to no timeout or very long ones.
+        options = ClientOptions(postgrest_client_timeout=10, storage_client_timeout=10)
+
+        self.client: Client = create_client(url, key, options=options)
         self.is_configured = bool(settings.supabase_url and settings.supabase_key)
 
     def log_agent_trace(
