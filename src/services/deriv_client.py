@@ -34,6 +34,9 @@ class DerivClient:
         # Queue for closed candles that need to be flushed to the database
         self.candles_to_flush: List[Dict[str, Any]] = []
 
+        # Counter for diagnostic logging of ticks
+        self._tick_log_counter = 0
+
         self.TF_INTERVALS = {
             "M1": 60,
             "M5": 300,
@@ -210,6 +213,12 @@ class DerivClient:
 
         # Unmap symbol to our instrument format if needed (e.g. frxEURUSD -> EUR_USD)
         instrument = self._unmap_instrument(symbol)
+
+        # Diagnostic log every 50 ticks to avoid spamming the logs
+        self._tick_log_counter += 1
+        if self._tick_log_counter % 50 == 0:
+            forming_count = len(self.current_candles.get(instrument, {}))
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [DERIV TICK] Received tick for {instrument} - quote: {quote}. Current candles tracking {forming_count} timeframes.")
 
         if instrument not in self.current_candles:
             self.current_candles[instrument] = {}
