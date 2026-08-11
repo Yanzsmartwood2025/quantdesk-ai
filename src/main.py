@@ -48,9 +48,15 @@ async def update_memory_from_closed_trades():
 
 async def upsert_candles_loop():
     """Background loop that saves forming/closed candles to DB every 5 seconds."""
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [UPSERT LOOP] Started")
+    cycle_count = 0
     while True:
+        cycle_count += 1
         closed_candles = []
         try:
+            # Diagnostic log at the start of each iteration
+            forming_count = sum(len(tfs) for tfs in deriv.current_candles.values())
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [UPSERT LOOP] Cycle {cycle_count}, closed candles to flush: {len(deriv.candles_to_flush)}, forming candles in memory: {forming_count}")
             # 1. First process any closed candles that were queued up
             closed_candles = deriv.candles_to_flush.copy()
             deriv.candles_to_flush.clear()
