@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from typing import List, Dict, Any
@@ -9,10 +10,10 @@ from src.agents.analyst import TechAnalystAgent
 from src.agents.risk import RiskManagerAgent
 from src.agents.portfolio import PortfolioManagerAgent
 
-def update_memory_from_closed_trades():
+async def update_memory_from_closed_trades():
     """Polls recently closed trades and updates Supabase memory."""
     print("[SYSTEM] Checking for recently closed trades...")
-    closed_trades = deriv.get_closed_trades(count=50)
+    closed_trades = await deriv.get_closed_trades(count=50)
     for trade in closed_trades:
         # We need to extract the instrument, outcome (win/loss), PnL, and trade_id
         trade_id = trade.get("id")
@@ -24,10 +25,6 @@ def update_memory_from_closed_trades():
 
         outcome = "WIN" if realized_pl > 0 else "LOSS"
 
-        # Deriv doesn't inherently store our "setup_type" in a simple way for CFD/Multipliers.
-        # In a full production system, we'd map trade_id back to our agent traces.
-        # For now, we will store a generic setup if we don't have it.
-        # We'll log it as "UNKNOWN_SETUP" since we don't have clientExtensions support right now.
         client_ext = trade.get("clientExtensions", {})
         setup_type = client_ext.get("tag", "UNKNOWN_SETUP")
 
@@ -39,21 +36,63 @@ def update_memory_from_closed_trades():
             trade_id=trade_id
         )
 
-def process_instrument_candles(instrument: str, timeframes: List[str] = None):
-    """Fetches and saves multi-timeframe candles to DB without running AI."""
-    if not timeframes:
-        timeframes = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"]
-    print(f"\n[CANDLE FETCH] Fetching candles for {instrument} on {timeframes}...")
-    candles = deriv.get_multi_timeframe_candles(instrument, timeframes=timeframes, count=20)
-    if not any(candles.values()):
-        print(f"[{instrument}] No candle data fetched.")
-        return
+async def upsert_candles_loop():
+    """Background loop that saves forming/closed candles to DB every 5 seconds."""
+    while True:
+        try:
+            # 1. First process any closed candles that were queued up
+            closed_candles = deriv.candles_to_flush.copy()
+            deriv.candles_to_flush.clear()
 
-    # Save the fetched candles to DB
-    print(f"[{instrument}] Saving recent candles to database...")
-    db_client.save_candles(instrument, candles)
+            # Group by instrument to leverage bulk upserts
+            flush_dict: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+            for item in closed_candles:
+                inst = item["instrument"]
+                tf = item["timeframe"]
+                c_data = item["data"]
 
-def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAnalystAgent, risk_mgr: RiskManagerAgent, portfolio_mgr: PortfolioManagerAgent):
+                if inst not in flush_dict:
+                    flush_dict[inst] = {}
+                if tf not in flush_dict[inst]:
+                    flush_dict[inst][tf] = []
+
+                flush_dict[inst][tf].append({
+                    "time": c_data["time"],
+                    "open": c_data["open"],
+                    "high": c_data["high"],
+                    "low": c_data["low"],
+                    "close": c_data["close"],
+                    "volume": 0,
+                    "is_closed": True
+                })
+
+            # Upsert closed candles using thread pool to avoid blocking the event loop
+            for instrument, db_candles_dict in flush_dict.items():
+                await asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict)
+
+            # 2. Then process the current forming candles
+            if deriv.current_candles:
+                for instrument, tfs in list(deriv.current_candles.items()):
+                    db_candles_dict = {}
+                    for tf, candle_data in list(tfs.items()):
+                        db_candles_dict[tf] = [{
+                            "time": candle_data["time"],
+                            "open": candle_data["open"],
+                            "high": candle_data["high"],
+                            "low": candle_data["low"],
+                            "close": candle_data["close"],
+                            "volume": 0,
+                            "is_closed": candle_data.get("is_closed", False)
+                        }]
+
+                    if db_candles_dict:
+                        await asyncio.to_thread(db_client.save_candles, instrument, db_candles_dict)
+        except Exception as e:
+            print(f"[CANDLE SYNC ERROR] {e}")
+
+        await asyncio.sleep(5)
+
+async def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAnalystAgent, risk_mgr: RiskManagerAgent, portfolio_mgr: PortfolioManagerAgent):
     """Runs the AI pipeline using candles fetched from the database."""
     print(f"\n[AI PIPELINE] Processing {instrument}...")
 
@@ -84,7 +123,7 @@ def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAnalystAg
     setup_type = analyst_result.setup_type
 
     # 3. Risk Manager
-    open_trades_count = deriv.get_open_trades_count()
+    open_trades_count = await deriv.get_open_trades_count()
     print(f"[{instrument}] Running Risk Manager (Open trades: {open_trades_count})...")
     risk_result = risk_mgr.evaluate(instrument, analyst_result.model_dump(), open_trades_count, cycle_id)
     if not risk_result:
@@ -116,7 +155,7 @@ def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAnalystAg
         if settings.trading_enabled:
             print(f"[{instrument}] Executing {pm_result.action} of {pm_result.units} units. SL: {pm_result.stop_loss_price}, TP: {pm_result.take_profit_price}")
 
-            order_resp = deriv.place_market_order(
+            order_resp = await deriv.place_market_order(
                 instrument=instrument,
                 units=pm_result.units,
                 stop_loss_price=pm_result.stop_loss_price,
@@ -130,39 +169,38 @@ def process_instrument_ai(instrument: str, cycle_id: str, analyst: TechAnalystAg
         print(f"[{instrument}] Holding. No execution needed.")
 
 
-def main_loop():
+async def main_loop():
     print("="*50)
     print("QuantDesk AI Pipeline Started")
     print(f"Trading Enabled: {settings.trading_enabled}")
     print(f"AI Loop Interval: {settings.loop_interval_seconds} seconds")
-    print("Candle Fetch Interval: 60 seconds (1 minute base loop, dynamic fetching)")
     print(f"Pairs: {settings.parsed_pairs}")
+
+    # Start Deriv WebSocket Connection with retry
+    while not deriv._connected.is_set():
+        await deriv.connect()
+        if not deriv._connected.is_set():
+            print("[SYSTEM] Initial Deriv connection failed. Retrying in 5 seconds...")
+            await asyncio.sleep(5)
 
     # Sync synthetics on startup
     print("Syncing synthetic indices from Deriv...")
-    synthetics = deriv.get_active_synthetics()
+    synthetics = await deriv.get_active_synthetics()
     if synthetics:
         db_client.sync_synthetics(synthetics)
     else:
         print("Warning: Could not fetch active synthetics from Deriv.")
     print("="*50)
 
+    # Start the continuous candle upsert background loop
+    asyncio.create_task(upsert_candles_loop())
+
     analyst = TechAnalystAgent()
     risk_mgr = RiskManagerAgent()
     portfolio_mgr = PortfolioManagerAgent()
 
     last_ai_run_time = {}
-    CANDLE_FETCH_INTERVAL = 60 # 1 minute (shortest timeframe)
-
-    TF_INTERVALS = {
-        "M1": 60,
-        "M5": 300,
-        "M15": 900,
-        "M30": 1800,
-        "H1": 3600,
-        "H4": 14400,
-        "D1": 86400
-    }
+    AI_CHECK_INTERVAL = 60 # Check if AI needs to run every 60s
 
     while True:
         cycle_id = str(uuid.uuid4())
@@ -171,7 +209,7 @@ def main_loop():
 
         try:
             # Sync memory first
-            update_memory_from_closed_trades()
+            await update_memory_from_closed_trades()
 
             # Fetch active statuses for all instruments
             active_statuses = db_client.get_active_instruments_statuses()
@@ -179,19 +217,10 @@ def main_loop():
             # All instruments that exist in active_statuses + parsed_pairs
             all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
 
-            # 1. Process Candle Fetching for all instruments in active_instruments table + pairs
-            # Each timeframe has its own refresh rate.
+            # Ensure we are subscribed to all active instruments for tick streaming
             for instrument in all_instruments:
-                tfs_to_fetch = []
-                for tf, interval in TF_INTERVALS.items():
-                    latest_time = db_client.get_latest_candle_time(instrument, tf)
-                    if (current_time - latest_time) >= interval:
-                        tfs_to_fetch.append(tf)
-
-                if tfs_to_fetch:
-                    process_instrument_candles(instrument, tfs_to_fetch)
-                else:
-                    print(f"[{instrument}] No timeframes due for refresh.")
+                if active_statuses.get(instrument, False) or instrument in settings.parsed_pairs:
+                    await deriv.subscribe_ticks(instrument)
 
             # 2. Run AI Pipeline only for ACTIVE instruments if interval has passed
             for instrument in all_instruments:
@@ -201,7 +230,7 @@ def main_loop():
 
                 last_run = last_ai_run_time.get(instrument, 0)
                 if (current_time - last_run) >= settings.loop_interval_seconds:
-                    process_instrument_ai(instrument, cycle_id, analyst, risk_mgr, portfolio_mgr)
+                    await process_instrument_ai(instrument, cycle_id, analyst, risk_mgr, portfolio_mgr)
                     last_ai_run_time[instrument] = current_time
                 else:
                     print(f"\n[{instrument}] Skipping AI (last run {current_time - last_run:.0f}s ago).")
@@ -209,8 +238,8 @@ def main_loop():
         except Exception as e:
             print(f"[SYSTEM ERROR] {e}")
 
-        print(f"\n--- Cycle complete. Sleeping for {CANDLE_FETCH_INTERVAL}s ---")
-        time.sleep(CANDLE_FETCH_INTERVAL)
+        print(f"\n--- Cycle complete. Sleeping for {AI_CHECK_INTERVAL}s ---")
+        await asyncio.sleep(AI_CHECK_INTERVAL)
 
 if __name__ == "__main__":
-    main_loop()
+    asyncio.run(main_loop())

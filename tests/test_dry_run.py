@@ -1,16 +1,17 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import json
+import asyncio
 
 import src.main
 
-class TestDryRun(unittest.TestCase):
-    @patch('src.main.update_memory_from_closed_trades')
+class TestDryRun(unittest.IsolatedAsyncioTestCase):
+    @patch('src.main.update_memory_from_closed_trades', new_callable=AsyncMock)
     @patch('src.main.db_client')
     @patch('src.main.deriv')
     @patch('src.agents.base_llm.litellm.completion')
     @patch('src.main.settings')
-    def test_dry_run(self, mock_settings, mock_completion, mock_deriv, mock_db_client, mock_update_memory):
+    async def test_dry_run(self, mock_settings, mock_completion, mock_deriv, mock_db_client, mock_update_memory):
         # Configure mocked settings
         mock_settings.trading_enabled = False
         mock_settings.loop_interval_seconds = 1
@@ -19,14 +20,15 @@ class TestDryRun(unittest.TestCase):
         mock_settings.max_open_trades = 3
         mock_settings.max_daily_loss = 50.0
 
-        # Mock Deriv WebSocket responses
-        mock_deriv.get_closed_trades.return_value = []
-        mock_deriv.get_multi_timeframe_candles.return_value = {
+        # Mock Deriv WebSocket responses (async)
+        mock_deriv.get_closed_trades = AsyncMock(return_value=[])
+        mock_deriv.get_multi_timeframe_candles = AsyncMock(return_value={
             "D1": [{"close": 1.1000}],
             "H4": [{"close": 1.1020}],
             "H1": [{"close": 1.1050}]
-        }
-        mock_deriv.get_open_trades_count.return_value = 1
+        })
+        mock_deriv.get_open_trades_count = AsyncMock(return_value=1)
+        mock_deriv.place_market_order = AsyncMock(return_value={"order": "success"})
 
         # Mock Supabase responses
         mock_db_client.get_memory_stats.return_value = {"win_rate": 0.6, "total_trades": 10}
@@ -78,7 +80,7 @@ class TestDryRun(unittest.TestCase):
         mock_completion.side_effect = mock_completion_side_effect
 
         # Import main loop and process one instrument
-        from src.main import process_instrument_candles, process_instrument_ai
+        from src.main import process_instrument_ai
         from src.agents.analyst import TechAnalystAgent
         from src.agents.risk import RiskManagerAgent
         from src.agents.portfolio import PortfolioManagerAgent
@@ -94,7 +96,6 @@ class TestDryRun(unittest.TestCase):
 
         # Initialize agents (with mocked litellm via patch)
         analyst = TechAnalystAgent()
-        # Mock API keys so they don't get skipped
         analyst.api_keys = ["mock_key"]
 
         risk_mgr = RiskManagerAgent()
@@ -108,8 +109,7 @@ class TestDryRun(unittest.TestCase):
         # Execute the process for one instrument
         print("\n--- Starting Dry Run Simulation ---")
         try:
-            process_instrument_candles("EUR_USD")
-            process_instrument_ai("EUR_USD", cycle_id, analyst, risk_mgr, portfolio_mgr)
+            await process_instrument_ai("EUR_USD", cycle_id, analyst, risk_mgr, portfolio_mgr)
             success = True
         except Exception as e:
             print(f"Exception during dry run: {e}")
@@ -120,7 +120,6 @@ class TestDryRun(unittest.TestCase):
 
         self.assertTrue(success, "process_instrument raised an exception")
         self.assertEqual(llm_call_count[0], 3, "Expected exactly 3 simulated LLM calls")
-        self.assertTrue(mock_db_client.save_candles.called, "Candles should have been saved")
         self.assertTrue(mock_db_client.get_memory_stats.called, "Memory stats should have been fetched")
 
 if __name__ == '__main__':

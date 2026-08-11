@@ -170,7 +170,8 @@ class SupabaseService:
                         "high": candle.get("high"),
                         "low": candle.get("low"),
                         "close": candle.get("close"),
-                        "volume": candle.get("volume", 0)
+                        "volume": candle.get("volume", 0),
+                        "is_closed": candle.get("is_closed", False)
                     })
                 except Exception as e:
                     print(f"Error preparing candle for DB insertion: {e}")

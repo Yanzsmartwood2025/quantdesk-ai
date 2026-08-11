@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS market_candles (
     low NUMERIC NOT NULL,
     close NUMERIC NOT NULL,
     volume NUMERIC,
+    is_closed BOOLEAN NOT NULL DEFAULT false,
     UNIQUE(instrument, timeframe, timestamp)
 );
 
