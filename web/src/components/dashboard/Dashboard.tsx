@@ -233,6 +233,8 @@ export function Dashboard() {
     const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
 
     try {
+      console.log(`[REALTIME] Subscribing to instrument ${instrument}, timeframe ${targetTimeframeInternal} (${selectedTimeframe})`);
+
       const channel = supabase
         .channel(`room_${instrument}`)
         .on(
@@ -244,6 +246,7 @@ export function Dashboard() {
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
+            console.log("[REALTIME] Market Candle Event received:", payload);
             // Support both INSERT and UPDATE
             if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return;
             const newCandle = payload.new as MarketCandle;
@@ -261,6 +264,7 @@ export function Dashboard() {
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
+            console.log("[REALTIME] Event received:", payload);
             const newTrace = payload.new as AgentTrace;
             setTraces((current) => [newTrace, ...current]);
 
@@ -289,7 +293,9 @@ export function Dashboard() {
             setIsInstrumentActive(payload.new.is_active);
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`[REALTIME] Subscription status for room_${instrument}:`, status);
+        });
 
       return () => {
         supabase.removeChannel(channel);

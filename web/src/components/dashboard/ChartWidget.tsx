@@ -111,6 +111,7 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle }: ChartWidgetP
       close: lastUpdatedCandle.close,
     };
 
+    console.log("[CHART] Updating series with live candle:", formattedCandle);
     seriesRef.current.update(formattedCandle);
   }, [lastUpdatedCandle]);
 
