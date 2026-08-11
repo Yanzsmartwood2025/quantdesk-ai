@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AgentTrace, MarketCandle } from '@/types/database';
 import { EmptyState } from './EmptyState';
@@ -31,7 +31,10 @@ export function Dashboard() {
   const [candles, setCandles] = useState<MarketCandle[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
   const [loading, setLoading] = useState(false);
-  const [dataLoading, setDataLoading] = useState(false);
+  const [isTracesLoading, setIsTracesLoading] = useState(false);
+  const [isInitialCandlesLoading, setIsInitialCandlesLoading] = useState(false);
+  const dataLoading = isTracesLoading || isInitialCandlesLoading;
+  const prevInstrument = useRef(instrument);
 
   // Active states for agents
   const [analystActive, setAnalystActive] = useState(false);
@@ -123,48 +126,18 @@ export function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, forexInstruments, syntheticGroups]);
 
-  // Initial Data Fetch
+  // Effect 1: Instrument Data Fetch (Traces & Status)
   useEffect(() => {
     if (loading) return;
 
-    const fetchTimeframesAndData = async () => {
-      setDataLoading(true);
-
+    const fetchInstrumentData = async () => {
+      setIsTracesLoading(true);
       try {
-        // 1. We ALWAYS support these exactly 7 timeframes as configured by backend
-        const availableTimeframes = [...TIMEFRAMES_DISPLAY];
-        setTimeframes(availableTimeframes);
+        // Initialize timeframes static list
+        setTimeframes([...TIMEFRAMES_DISPLAY]);
+        setSelectedTimeframe((prev) => (!prev || !TIMEFRAMES_DISPLAY.includes(prev)) ? TIMEFRAMES_DISPLAY[0] : prev);
 
-        let targetTimeframeDisplay = selectedTimeframe;
-        if (availableTimeframes.length > 0 && (!selectedTimeframe || !availableTimeframes.includes(selectedTimeframe))) {
-          targetTimeframeDisplay = availableTimeframes[0];
-          setSelectedTimeframe(targetTimeframeDisplay);
-        }
-
-        // Convert display timeframe to internal before query
-        const tfIndex = TIMEFRAMES_DISPLAY.indexOf(targetTimeframeDisplay);
-        const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
-
-        // 2. Fetch candles based on instrument and selected/target timeframe
-        let candlesQuery = supabase
-          .from('market_candles')
-          .select('*')
-          .eq('instrument', instrument)
-          .order('timestamp', { ascending: false })
-          .limit(200);
-
-        if (targetTimeframeInternal) {
-          candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
-        }
-
-        const { data: candlesData, error: candlesError } = await candlesQuery;
-
-        if (candlesData) {
-          setCandles(candlesData);
-        }
-        if (candlesError) console.error("Failed to load candles:", candlesError);
-
-        // 3. Fetch initial traces
+        // Fetch initial traces
         const { data: tracesData, error: tracesError } = await supabase
           .from('agent_traces')
           .select('*')
@@ -172,7 +145,7 @@ export function Dashboard() {
           .order('created_at', { ascending: false })
           .limit(50);
 
-        // 4. Fetch active state
+        // Fetch active state
         const { data: activeData, error: activeError } = await supabase
           .from('active_instruments')
           .select('is_active')
@@ -191,13 +164,61 @@ export function Dashboard() {
         }
         if (tracesError) console.error("Failed to load traces:", tracesError);
       } catch (err) {
-        console.error("Error during initial data fetch:", err);
+        console.error("Error during instrument data fetch:", err);
       } finally {
-        setDataLoading(false);
+        setIsTracesLoading(false);
       }
     };
 
-    fetchTimeframesAndData();
+    fetchInstrumentData();
+  }, [instrument, loading]);
+
+  // Effect 2: Timeframe Data Fetch (Candles only)
+  useEffect(() => {
+    if (loading) return;
+
+    // Safety check - wait for selectedTimeframe to be set by Effect 1 if missing
+    if (!selectedTimeframe) return;
+
+    const isInstrumentChange = prevInstrument.current !== instrument;
+    if (isInstrumentChange) {
+       setIsInitialCandlesLoading(true);
+       setCandles([]); // Clear old candles to avoid flashing stale data
+    }
+
+    const fetchCandles = async () => {
+      try {
+        const tfIndex = TIMEFRAMES_DISPLAY.indexOf(selectedTimeframe);
+        const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
+
+        let candlesQuery = supabase
+          .from('market_candles')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('timestamp', { ascending: false })
+          .limit(200);
+
+        if (targetTimeframeInternal) {
+          candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
+        }
+
+        const { data: candlesData, error: candlesError } = await candlesQuery;
+
+        if (candlesData) {
+          setCandles(candlesData);
+        }
+        if (candlesError) console.error("Failed to load candles:", candlesError);
+      } catch (err) {
+        console.error("Error during candle data fetch:", err);
+      } finally {
+        if (isInstrumentChange) {
+           setIsInitialCandlesLoading(false);
+           prevInstrument.current = instrument;
+        }
+      }
+    };
+
+    fetchCandles();
   }, [instrument, selectedTimeframe, loading]);
 
   // Supabase Realtime Subscriptions
