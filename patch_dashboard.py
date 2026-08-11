@@ -1,78 +1,179 @@
-file_path = "web/src/components/dashboard/Dashboard.tsx"
-with open(file_path, "r") as f:
+import re
+
+with open("web/src/components/dashboard/Dashboard.tsx", "r") as f:
     content = f.read()
 
-search_constants = """const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY'];
-const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];"""
+# We need to find the "Initial Data Fetch" block and replace it
+# The block starts at: // Initial Data Fetch
+# and ends right before: // Supabase Realtime Subscriptions
 
-replace_constants = """const AVAILABLE_INSTRUMENTS = ['EUR_USD', 'GBP_USD', 'USD_JPY'];
-const SYNTHETIC_INSTRUMENTS = ['R_75', 'R_100', 'BOOM1000', 'CRASH1000'];
-const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
-
-const instrumentLabels: Record<string, string> = {
-  'R_75': 'Volatility 75',
-  'R_100': 'Volatility 100',
-  'BOOM1000': 'Boom 1000',
-  'CRASH1000': 'Crash 1000'
-};"""
-
-content = content.replace(search_constants, replace_constants)
-
-search_category_effect = """  // Initial Data Fetch
-  useEffect(() => {"""
-
-replace_category_effect = """  // Handle category change
+search_str = """  // Initial Data Fetch
   useEffect(() => {
-    if (category === 'Forex') {
-      if (!AVAILABLE_INSTRUMENTS.includes(instrument)) setInstrument(AVAILABLE_INSTRUMENTS[0]);
-    } else if (category === 'Sintéticos') {
-      if (!SYNTHETIC_INSTRUMENTS.includes(instrument)) setInstrument(SYNTHETIC_INSTRUMENTS[0]);
-    }
-  }, [category, instrument]);
+    if (loading) return;
 
-  // Initial Data Fetch
-  useEffect(() => {"""
+    const fetchTimeframesAndData = async () => {
+      setDataLoading(true);
 
-content = content.replace(search_category_effect, replace_category_effect)
+      try {
+        // 1. We ALWAYS support these exactly 7 timeframes as configured by backend
+        const availableTimeframes = [...TIMEFRAMES_DISPLAY];
+        setTimeframes(availableTimeframes);
 
-search_dropdown = """          {category === 'Forex' && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-400">Instrumento:</label>
-              <select
-                value={instrument}
-                onChange={(e) => setInstrument(e.target.value)}
-                className="bg-[#131722] border border-gray-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {AVAILABLE_INSTRUMENTS.map(inst => (
-                  <option key={inst} value={inst}>{inst.replace('_', '/')}</option>
-                ))}
-              </select>
-            </div>
-          )}"""
+        let targetTimeframeDisplay = selectedTimeframe;
+        if (availableTimeframes.length > 0 && (!selectedTimeframe || !availableTimeframes.includes(selectedTimeframe))) {
+          targetTimeframeDisplay = availableTimeframes[0];
+          setSelectedTimeframe(targetTimeframeDisplay);
+        }
 
-replace_dropdown = """          {(category === 'Forex' || category === 'Sintéticos') && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-400">Instrumento:</label>
-              <select
-                value={instrument}
-                onChange={(e) => setInstrument(e.target.value)}
-                className="bg-[#131722] border border-gray-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {category === 'Forex' && AVAILABLE_INSTRUMENTS.map(inst => (
-                  <option key={inst} value={inst}>{inst.replace('_', '/')}</option>
-                ))}
-                {category === 'Sintéticos' && SYNTHETIC_INSTRUMENTS.map(inst => (
-                  <option key={inst} value={inst}>{instrumentLabels[inst] || inst}</option>
-                ))}
-              </select>
-            </div>
-          )}"""
+        // Convert display timeframe to internal before query
+        const tfIndex = TIMEFRAMES_DISPLAY.indexOf(targetTimeframeDisplay);
+        const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
 
-content = content.replace(search_dropdown, replace_dropdown)
+        // 2. Fetch candles based on instrument and selected/target timeframe
+        let candlesQuery = supabase
+          .from('market_candles')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('timestamp', { ascending: false })
+          .limit(200);
 
-search_empty_state = """      {category !== 'Forex' ? ("""
-replace_empty_state = """      {(category !== 'Forex' && category !== 'Sintéticos') ? ("""
-content = content.replace(search_empty_state, replace_empty_state)
+        if (targetTimeframeInternal) {
+          candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
+        }
 
-with open(file_path, "w") as f:
-    f.write(content)
+        const { data: candlesData, error: candlesError } = await candlesQuery;
+
+        if (candlesData) {
+          setCandles(candlesData);
+        }
+        if (candlesError) console.error("Failed to load candles:", candlesError);
+
+        // 3. Fetch initial traces
+        const { data: tracesData, error: tracesError } = await supabase
+          .from('agent_traces')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        // 4. Fetch active state
+        const { data: activeData, error: activeError } = await supabase
+          .from('active_instruments')
+          .select('is_active')
+          .eq('instrument', instrument)
+          .single();
+
+        if (activeData) {
+          setIsInstrumentActive(activeData.is_active);
+        } else {
+          setIsInstrumentActive(false); // default
+        }
+        if (activeError) console.error("Failed to load active status:", activeError);
+
+        if (tracesData) {
+          setTraces(tracesData);
+        }
+        if (tracesError) console.error("Failed to load traces:", tracesError);
+      } catch (err) {
+        console.error("Error during initial data fetch:", err);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchTimeframesAndData();
+  }, [instrument, selectedTimeframe, loading]);"""
+
+replace_str = """  // Effect 1: Instrument Data Fetch (Traces & Status)
+  useEffect(() => {
+    if (loading) return;
+
+    const fetchInstrumentData = async () => {
+      setDataLoading(true);
+      try {
+        // Initialize timeframes static list
+        setTimeframes([...TIMEFRAMES_DISPLAY]);
+        if (!selectedTimeframe || !TIMEFRAMES_DISPLAY.includes(selectedTimeframe)) {
+           setSelectedTimeframe(TIMEFRAMES_DISPLAY[0]);
+        }
+
+        // Fetch initial traces
+        const { data: tracesData, error: tracesError } = await supabase
+          .from('agent_traces')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        // Fetch active state
+        const { data: activeData, error: activeError } = await supabase
+          .from('active_instruments')
+          .select('is_active')
+          .eq('instrument', instrument)
+          .single();
+
+        if (activeData) {
+          setIsInstrumentActive(activeData.is_active);
+        } else {
+          setIsInstrumentActive(false); // default
+        }
+        if (activeError) console.error("Failed to load active status:", activeError);
+
+        if (tracesData) {
+          setTraces(tracesData);
+        }
+        if (tracesError) console.error("Failed to load traces:", tracesError);
+      } catch (err) {
+        console.error("Error during instrument data fetch:", err);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchInstrumentData();
+  }, [instrument, loading]);
+
+  // Effect 2: Timeframe Data Fetch (Candles only)
+  useEffect(() => {
+    if (loading) return;
+
+    // Safety check - wait for selectedTimeframe to be set by Effect 1 if missing
+    if (!selectedTimeframe) return;
+
+    const fetchCandles = async () => {
+      try {
+        const tfIndex = TIMEFRAMES_DISPLAY.indexOf(selectedTimeframe);
+        const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
+
+        let candlesQuery = supabase
+          .from('market_candles')
+          .select('*')
+          .eq('instrument', instrument)
+          .order('timestamp', { ascending: false })
+          .limit(200);
+
+        if (targetTimeframeInternal) {
+          candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
+        }
+
+        const { data: candlesData, error: candlesError } = await candlesQuery;
+
+        if (candlesData) {
+          setCandles(candlesData);
+        }
+        if (candlesError) console.error("Failed to load candles:", candlesError);
+      } catch (err) {
+        console.error("Error during candle data fetch:", err);
+      }
+    };
+
+    fetchCandles();
+  }, [instrument, selectedTimeframe, loading]);"""
+
+if search_str in content:
+    new_content = content.replace(search_str, replace_str)
+    with open("web/src/components/dashboard/Dashboard.tsx", "w") as f:
+        f.write(new_content)
+    print("Successfully patched Dashboard.tsx")
+else:
+    print("Could not find the target block in Dashboard.tsx")
