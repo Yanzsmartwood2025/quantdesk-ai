@@ -247,13 +247,15 @@ export function Dashboard() {
             event: '*',
             schema: 'public',
             table: 'market_candles',
-            filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
             console.log("[REALTIME] Market Candle Event received:", payload);
             // Support both INSERT and UPDATE
             if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return;
             const newCandle = payload.new as MarketCandle;
+
+            // Client-side filtering by instrument and timeframe
+            if (newCandle.instrument !== instrument) return;
             if (!targetTimeframeInternal || newCandle.timeframe === targetTimeframeInternal) {
                setLastUpdatedCandle(newCandle);
             }
@@ -303,7 +305,7 @@ export function Dashboard() {
         });
 
       // Hook to set generic event log
-      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'market_candles', filter: `instrument=eq.${instrument}` }, (payload) => {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'market_candles' }, (payload) => {
         setDiagLastEvent({ table: 'market_candles', event: payload.eventType, time: new Date().toISOString() });
       });
 
