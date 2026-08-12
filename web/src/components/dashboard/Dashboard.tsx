@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseUrl } from '@/lib/supabase';
 import { AgentTrace, MarketCandle } from '@/types/database';
 import { EmptyState } from './EmptyState';
 import { AgentStatusCard } from './AgentStatusCard';
@@ -366,6 +366,7 @@ export function Dashboard() {
       {/* Diagnóstico Flotante (Temporal) */}
       <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-green-400 p-4 rounded-lg shadow-lg border border-gray-700 max-w-sm text-xs font-mono break-words pointer-events-none">
         <h3 className="font-bold text-white mb-2 uppercase border-b border-gray-700 pb-1">Realtime Diagnóstico</h3>
+        <p><strong>URL:</strong> {supabaseUrl}</p>
         <p><strong>Status:</strong> {diagStatus}</p>
         <p><strong>Último Evento:</strong> {JSON.stringify(diagLastEvent)}</p>
         <div className="mt-2 border-t border-gray-700 pt-1 max-h-32 overflow-y-auto">
