@@ -32,7 +32,7 @@ Este proyecto está diseñado para desplegarse de manera continua en un servidor
 
    **Credenciales Supabase:**
    - `SUPABASE_URL`
-   - `SUPABASE_KEY`
+   - `SUPABASE_KEY` (¡IMPORTANTE! Debe ser la **service_role key**, NO la anon key. El backend necesita bypass a las políticas RLS para guardar datos)
 
    **Parámetros de Trading (Opcionales / Ajustables):**
    - `TRADING_ENABLED` (ej. `false` o `true`)
