@@ -249,7 +249,9 @@ export function Dashboard() {
             table: 'market_candles',
           },
           (payload) => {
-            console.log("[REALTIME] Market Candle Event received:", payload);
+            console.log("[REALTIME] RAW EVENT RECEIVED:", payload);
+            setDiagLastEvent({ table: 'market_candles', event: payload.eventType, time: new Date().toISOString() });
+
             // Support both INSERT and UPDATE
             if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return;
             const newCandle = payload.new as MarketCandle;
@@ -303,11 +305,6 @@ export function Dashboard() {
           console.log(`[REALTIME] Subscription status for room_${instrument}:`, status);
           setDiagStatus(status);
         });
-
-      // Hook to set generic event log
-      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'market_candles' }, (payload) => {
-        setDiagLastEvent({ table: 'market_candles', event: payload.eventType, time: new Date().toISOString() });
-      });
 
       return () => {
         supabase.removeChannel(channel);
