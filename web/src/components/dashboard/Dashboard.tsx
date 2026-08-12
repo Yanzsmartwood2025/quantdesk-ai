@@ -31,6 +31,10 @@ export function Dashboard() {
   const [candles, setCandles] = useState<MarketCandle[]>([]);
   const [lastUpdatedCandle, setLastUpdatedCandle] = useState<MarketCandle | null>(null);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
+
+  // Diagnostic states
+  const [diagStatus, setDiagStatus] = useState<string>('INIT');
+  const [diagLastEvent, setDiagLastEvent] = useState<any>('Ninguno todavía');
   const [loading, setLoading] = useState(false);
   const [isTracesLoading, setIsTracesLoading] = useState(false);
   const [isInitialCandlesLoading, setIsInitialCandlesLoading] = useState(false);
@@ -295,7 +299,13 @@ export function Dashboard() {
         )
         .subscribe((status) => {
           console.log(`[REALTIME] Subscription status for room_${instrument}:`, status);
+          setDiagStatus(status);
         });
+
+      // Hook to set generic event log
+      channel.on('postgres_changes', { event: '*', schema: 'public', table: 'market_candles', filter: `instrument=eq.${instrument}` }, (payload) => {
+        setDiagLastEvent({ table: 'market_candles', event: payload.eventType, time: new Date().toISOString() });
+      });
 
       return () => {
         supabase.removeChannel(channel);
@@ -349,7 +359,19 @@ export function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 p-4 md:p-6 font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 p-4 md:p-6 font-sans transition-colors duration-300 relative">
+
+      {/* Diagnóstico Flotante (Temporal) */}
+      <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-green-400 p-4 rounded-lg shadow-lg border border-gray-700 max-w-sm text-xs font-mono break-words pointer-events-none">
+        <h3 className="font-bold text-white mb-2 uppercase border-b border-gray-700 pb-1">Realtime Diagnóstico</h3>
+        <p><strong>Status:</strong> {diagStatus}</p>
+        <p><strong>Último Evento:</strong> {JSON.stringify(diagLastEvent)}</p>
+        <div className="mt-2 border-t border-gray-700 pt-1 max-h-32 overflow-y-auto">
+          <strong>lastUpdatedCandle:</strong>
+          <pre className="text-gray-300 whitespace-pre-wrap">{lastUpdatedCandle ? JSON.stringify(lastUpdatedCandle, null, 2) : 'null'}</pre>
+        </div>
+      </div>
+
       <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div className="flex justify-between items-center w-full md:w-auto">
           <div>
