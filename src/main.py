@@ -292,10 +292,14 @@ async def main_loop():
             # All instruments that exist in active_statuses + parsed_pairs
             all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
 
-            # Ensure we are subscribed to all active instruments for tick streaming
-            for instrument in all_instruments:
-                if active_statuses.get(instrument, False) or instrument in settings.parsed_pairs:
-                    await deriv.subscribe_ticks(instrument)
+            # Determine which instruments should be truly active
+            active_instruments = {
+                instrument for instrument in all_instruments
+                if active_statuses.get(instrument, False)
+            }
+
+            # Ensure Deriv streaming exactly matches our active instruments
+            await deriv.update_tick_subscriptions(active_instruments)
 
             # 2. Run AI Pipeline only for ACTIVE instruments if interval has passed
             for instrument in all_instruments:
