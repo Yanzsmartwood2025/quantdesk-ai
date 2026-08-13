@@ -9,9 +9,10 @@ interface ChartWidgetProps {
   candles: MarketCandle[];
   traces: AgentTrace[];
   lastUpdatedCandle?: MarketCandle | null;
+  pipSize?: number;
 }
 
-export function ChartWidget({ candles, traces, lastUpdatedCandle }: ChartWidgetProps) {
+export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: ChartWidgetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -41,6 +42,16 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle }: ChartWidgetP
       },
     });
 
+    // Calculate precision from pipSize
+    let precision = 2;
+    let minMove = 0.01;
+    if (pipSize) {
+      const pipString = pipSize.toString();
+      const decimals = pipString.split('.')[1]?.length || 0;
+      precision = decimals;
+      minMove = pipSize;
+    }
+
     // Add Candlestick series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#26a69a',
@@ -48,6 +59,11 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle }: ChartWidgetP
       borderVisible: false,
       wickUpColor: '#26a69a',
       wickDownColor: '#ef5350',
+      priceFormat: {
+        type: 'price',
+        precision: precision,
+        minMove: minMove,
+      },
     });
 
     chartRef.current = chart;

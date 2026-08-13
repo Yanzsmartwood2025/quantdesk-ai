@@ -353,26 +353,27 @@ class DerivClient:
 
             print(f"[DERIV] Updated tick subscriptions. Now tracking: {list(desired_instruments)}")
 
-    async def get_active_synthetics(self) -> List[Dict[str, Any]]:
-        """Obtiene la lista completa de índices sintéticos de Deriv."""
+    async def get_all_active_instruments(self) -> List[Dict[str, Any]]:
+        """Obtiene la lista completa de instrumentos (Forex y Sintéticos) de Deriv para sincronización."""
         req = {
             "active_symbols": "full"
         }
         data = await self._send_receive(req)
 
-        # Diagnostic logging for active synthetics
-        print(f"[DERIV] get_active_synthetics raw response: {data}")
+        # Diagnostic logging for active symbols
+        print(f"[DERIV] get_all_active_instruments fetch complete.")
         if "error" in data:
-            print(f"[DERIV ERROR] Failed to fetch active synthetics. Error details: {data['error']}")
+            print(f"[DERIV ERROR] Failed to fetch active symbols. Error details: {data['error']}")
 
         active_symbols = data.get("active_symbols", [])
 
-        synthetics = []
+        valid_instruments = []
         for symbol in active_symbols:
-            if symbol.get("market") == "synthetic_index":
-                synthetics.append(symbol)
+            market = symbol.get("market")
+            if market in ("synthetic_index", "forex"):
+                valid_instruments.append(symbol)
 
-        return synthetics
+        return valid_instruments
 
     async def get_multi_timeframe_candles(self, instrument: str, timeframes: List[str] = ["M1", "M5", "M15", "M30", "H1", "H4", "D1"], count: int = 10) -> Dict[str, Any]:
         results = {}

@@ -46,6 +46,30 @@ async def update_memory_from_closed_trades():
         except Exception as e:
             print(f"[SYSTEM ERROR] Failed to save trade outcome for {trade_id}: {e}")
 
+async def tick_subscription_loop():
+    """Background loop that updates Deriv tick subscriptions every few seconds."""
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [TICK SYNC LOOP] Started")
+    while True:
+        try:
+            active_statuses = await asyncio.wait_for(
+                asyncio.to_thread(db_client.get_active_instruments_statuses),
+                timeout=5.0
+            )
+
+            all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
+            active_instruments = {
+                instrument for instrument in all_instruments
+                if active_statuses.get(instrument, False)
+            }
+
+            await deriv.update_tick_subscriptions(active_instruments)
+        except asyncio.TimeoutError:
+            print("[TICK SYNC LOOP] Timeout fetching active instruments statuses.")
+        except Exception as e:
+            print(f"[TICK SYNC LOOP] Error: {e}")
+
+        await asyncio.sleep(2)
+
 async def upsert_candles_loop():
     """Background loop that saves forming/closed candles to DB every 5 seconds."""
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [UPSERT LOOP] Started")
@@ -239,26 +263,30 @@ async def main_loop():
             print("[SYSTEM] Initial Deriv connection failed. Retrying in 5 seconds...")
             await asyncio.sleep(5)
 
-    # Sync synthetics on startup
-    print("Syncing synthetic indices from Deriv...")
-    synthetics = await deriv.get_active_synthetics()
-    if synthetics:
+    # Sync instruments on startup
+    print("Syncing instruments from Deriv...")
+    instruments = await deriv.get_all_active_instruments()
+    if instruments:
         try:
             await asyncio.wait_for(
-                asyncio.to_thread(db_client.sync_synthetics, synthetics),
+                asyncio.to_thread(db_client.sync_instruments, instruments),
                 timeout=15.0
             )
         except asyncio.TimeoutError:
-            print("[SYSTEM ERROR] Timeout syncing synthetic indices to DB on startup.")
+            print("[SYSTEM ERROR] Timeout syncing instruments to DB on startup.")
         except Exception as e:
-            print(f"[SYSTEM ERROR] Error syncing synthetic indices: {e}")
+            print(f"[SYSTEM ERROR] Error syncing instruments: {e}")
     else:
-        print("Warning: Could not fetch active synthetics from Deriv.")
+        print("Warning: Could not fetch active instruments from Deriv.")
     print("="*50)
 
     # Start the continuous candle upsert background loop
     upsert_task = asyncio.create_task(upsert_candles_loop(), name="upsert_candles_loop")
     upsert_task.add_done_callback(log_task_exception)
+
+    # Start the fast tick subscription loop
+    tick_sync_task = asyncio.create_task(tick_subscription_loop(), name="tick_subscription_loop")
+    tick_sync_task.add_done_callback(log_task_exception)
 
     analyst = TechAnalystAgent()
     risk_mgr = RiskManagerAgent()
@@ -291,15 +319,6 @@ async def main_loop():
 
             # All instruments that exist in active_statuses + parsed_pairs
             all_instruments = set(settings.parsed_pairs) | set(active_statuses.keys())
-
-            # Determine which instruments should be truly active
-            active_instruments = {
-                instrument for instrument in all_instruments
-                if active_statuses.get(instrument, False)
-            }
-
-            # Ensure Deriv streaming exactly matches our active instruments
-            await deriv.update_tick_subscriptions(active_instruments)
 
             # 2. Run AI Pipeline only for ACTIVE instruments if interval has passed
             for instrument in all_instruments:

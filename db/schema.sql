@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS active_instruments (
     instrument VARCHAR(20) PRIMARY KEY,
     category VARCHAR(50) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT false,
-    activated_at TIMESTAMP WITH TIME ZONE
+    activated_at TIMESTAMP WITH TIME ZONE,
+    pip_size NUMERIC
 );
 
 -- Enable RLS and setup policies for active_instruments

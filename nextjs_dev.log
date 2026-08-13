@@ -1,0 +1,212 @@
+
+> web@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 553ms
+✓ Running next.config.ts took 49ms
+
+○ Compiling / ...
+ HEAD / 200 in 3.9s (next.js: 3.5s, application-code: 408ms)
+ GET / 200 in 110ms (next.js: 16ms, application-code: 94ms)
+[browser] Failed to load instruments: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstruments (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:805:49)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstruments (src/components/dashboard/Dashboard.tsx:63:19)
+  61 |
+  62 |         if (error) {
+> 63 |           console.error("Failed to load instruments:", error);
+     |                   ^
+  64 |           // Set some fallback mock data so we can verify the UI without DB
+  65 |           setSyntheticGroups([
+  66 |              { label: 'Volatility Indices', items: ['R_75', 'R_100'] }, (src/components/dashboard/Dashboard.tsx:63:19)
+[browser] Failed to load instruments: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstruments (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:805:49)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstruments (src/components/dashboard/Dashboard.tsx:63:19)
+  61 |
+  62 |         if (error) {
+> 63 |           console.error("Failed to load instruments:", error);
+     |                   ^
+  64 |           // Set some fallback mock data so we can verify the UI without DB
+  65 |           setSyntheticGroups([
+  66 |              { label: 'Volatility Indices', items: ['R_75', 'R_100'] }, (src/components/dashboard/Dashboard.tsx:63:19)
+[browser] Failed to load active status: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstrumentData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:950:74)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstrumentData (src/components/dashboard/Dashboard.tsx:173:34)
+  171 |           setIsInstrumentActive(false); // default
+  172 |         }
+> 173 |         if (activeError) console.error("Failed to load active status:", activeError);
+      |                                  ^
+  174 |
+  175 |         if (tracesData) {
+  176 |           setTraces(tracesData); (src/components/dashboard/Dashboard.tsx:173:34)
+[browser] Failed to load traces: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstrumentData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:946:74)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstrumentData (src/components/dashboard/Dashboard.tsx:178:34)
+  176 |           setTraces(tracesData);
+  177 |         }
+> 178 |         if (tracesError) console.error("Failed to load traces:", tracesError);
+      |                                  ^
+  179 |       } catch (err) {
+  180 |         console.error("Error during instrument data fetch:", err);
+  181 |       } finally { (src/components/dashboard/Dashboard.tsx:178:34)
+[browser] Failed to load active status: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstrumentData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:950:74)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstrumentData (src/components/dashboard/Dashboard.tsx:173:34)
+  171 |           setIsInstrumentActive(false); // default
+  172 |         }
+> 173 |         if (activeError) console.error("Failed to load active status:", activeError);
+      |                                  ^
+  174 |
+  175 |         if (tracesData) {
+  176 |           setTraces(tracesData); (src/components/dashboard/Dashboard.tsx:173:34)
+[browser] Failed to load traces: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstrumentData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:946:74)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstrumentData (src/components/dashboard/Dashboard.tsx:178:34)
+  176 |           setTraces(tracesData);
+  177 |         }
+> 178 |         if (tracesError) console.error("Failed to load traces:", tracesError);
+      |                                  ^
+  179 |       } catch (err) {
+  180 |         console.error("Error during instrument data fetch:", err);
+  181 |       } finally { (src/components/dashboard/Dashboard.tsx:178:34)
+[browser] Failed to load candles: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchCandles (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:997:76)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchCandles (src/components/dashboard/Dashboard.tsx:224:35)
+  222 |           setCandles(candlesData);
+  223 |         }
+> 224 |         if (candlesError) console.error("Failed to load candles:", candlesError);
+      |                                   ^
+  225 |       } catch (err) {
+  226 |         console.error("Error during candle data fetch:", err);
+  227 |       } finally { (src/components/dashboard/Dashboard.tsx:224:35)
+[browser] Failed to load active status: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstrumentData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:950:74)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstrumentData (src/components/dashboard/Dashboard.tsx:173:34)
+  171 |           setIsInstrumentActive(false); // default
+  172 |         }
+> 173 |         if (activeError) console.error("Failed to load active status:", activeError);
+      |                                  ^
+  174 |
+  175 |         if (tracesData) {
+  176 |           setTraces(tracesData); (src/components/dashboard/Dashboard.tsx:173:34)
+[browser] Failed to load traces: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstrumentData (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:946:74)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstrumentData (src/components/dashboard/Dashboard.tsx:178:34)
+  176 |           setTraces(tracesData);
+  177 |         }
+> 178 |         if (tracesError) console.error("Failed to load traces:", tracesError);
+      |                                  ^
+  179 |       } catch (err) {
+  180 |         console.error("Error during instrument data fetch:", err);
+  181 |       } finally { (src/components/dashboard/Dashboard.tsx:178:34)
+ GET / 200 in 65ms (next.js: 9ms, application-code: 55ms)
+[browser] Failed to load instruments: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstruments (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:805:49)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstruments (src/components/dashboard/Dashboard.tsx:63:19)
+  61 |
+  62 |         if (error) {
+> 63 |           console.error("Failed to load instruments:", error);
+     |                   ^
+  64 |           // Set some fallback mock data so we can verify the UI without DB
+  65 |           setSyntheticGroups([
+  66 |              { label: 'Volatility Indices', items: ['R_75', 'R_100'] }, (src/components/dashboard/Dashboard.tsx:63:19)
+[browser] Failed to load instruments: {
+  code: [32m''[39m,
+  details: [32m'TypeError: Failed to fetch\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12138:23\n'[39m +
+    [32m'    at http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:12186:16\n'[39m +
+    [32m'    at async executeWithRetry (http://localhost:3000/_next/static/chunks/node_modules_1shcgzb._.js:2633:29)\n'[39m +
+    [32m'    at async Dashboard.useEffect.fetchInstruments (http://localhost:3000/_next/static/chunks/src_075q3ij._.js:805:49)'[39m,
+  hint: [32m''[39m,
+  message: [32m'TypeError: Failed to fetch'[39m
+}
+    at Dashboard.useEffect.fetchInstruments (src/components/dashboard/Dashboard.tsx:63:19)
+  61 |
+  62 |         if (error) {
+> 63 |           console.error("Failed to load instruments:", error);
+     |                   ^
+  64 |           // Set some fallback mock data so we can verify the UI without DB
+  65 |           setSyntheticGroups([
+  66 |              { label: 'Volatility Indices', items: ['R_75', 'R_100'] }, (src/components/dashboard/Dashboard.tsx:63:19)
