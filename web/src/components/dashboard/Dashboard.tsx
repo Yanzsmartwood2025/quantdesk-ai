@@ -242,19 +242,16 @@ export function Dashboard() {
       const channel = supabase
         .channel(`room_${instrument}`)
         .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'market_candles',
-          },
+          'broadcast',
+          { event: '*' },
           (payload) => {
-            console.log("[REALTIME] RAW EVENT RECEIVED:", payload);
-            setDiagLastEvent({ table: 'market_candles', event: payload.eventType, time: new Date().toISOString() });
+            console.log("[REALTIME BROADCAST] RAW EVENT RECEIVED:", payload);
+            // Some events might just be empty pings or different events, so filter by our known events
+            if (payload.payload?.eventType !== 'INSERT' && payload.payload?.eventType !== 'UPDATE') return;
 
-            // Support both INSERT and UPDATE
-            if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return;
-            const newCandle = payload.new as MarketCandle;
+            setDiagLastEvent({ table: 'market_candles', event: payload.payload.eventType, time: new Date().toISOString() });
+
+            const newCandle = payload.payload.new as MarketCandle;
 
             // Client-side filtering by instrument and timeframe
             if (newCandle.instrument !== instrument) return;

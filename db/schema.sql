@@ -86,3 +86,34 @@ INSERT INTO active_instruments (instrument, category, is_active) VALUES
 ON CONFLICT (instrument) DO NOTHING;
 
 -- Insert baseline instruments for Synthetics
+
+-- ============================================================================
+-- REALTIME BROADCAST TRIGGER FOR MARKET CANDLES
+-- ============================================================================
+-- Sends changes via Realtime Broadcast instead of postgres_changes.
+-- We use realtime.send with is_private=false so the anonymous frontend
+-- client can receive them without needing RLS policies on realtime.messages.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION broadcast_market_candle_changes()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM realtime.send(
+    jsonb_build_object(
+      'eventType', TG_OP,
+      'new', row_to_json(NEW)
+    ),
+    TG_OP, -- Event name ('INSERT' or 'UPDATE')
+    'room_' || NEW.instrument, -- Topic
+    false -- is_private (false = public channel, no RLS required)
+  );
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS market_candles_broadcast_trigger ON market_candles;
+
+CREATE TRIGGER market_candles_broadcast_trigger
+AFTER INSERT OR UPDATE ON market_candles
+FOR EACH ROW
+EXECUTE FUNCTION broadcast_market_candle_changes();
