@@ -325,19 +325,33 @@ class DerivClient:
                     return potential_pair
         return symbol
 
-    async def subscribe_ticks(self, instrument: str):
-        """Subscribes to live ticks for an instrument."""
-        deriv_symbol = self._map_instrument(instrument)
-        if deriv_symbol not in self.active_subscriptions:
-            self.active_subscriptions.add(deriv_symbol)
-            req = {
-                "ticks": deriv_symbol,
-                "subscribe": 1
-            }
-            # We don't await the result, just send it
-            task = asyncio.create_task(self._send_receive(req), name=f"deriv_subscribe_{deriv_symbol}")
-            task.add_done_callback(log_task_exception)
-            print(f"[DERIV] Subscribed to ticks for {instrument} ({deriv_symbol})")
+    async def update_tick_subscriptions(self, desired_instruments: set[str]):
+        """
+        Ensures we are only subscribed to the desired instruments.
+        If the desired set of Deriv symbols doesn't match our active subscriptions,
+        we clear all tick subscriptions and re-subscribe to exactly what we need.
+        """
+        desired_deriv_symbols = {self._map_instrument(i) for i in desired_instruments}
+
+        if desired_deriv_symbols != self.active_subscriptions:
+            # Only send forget_all if we actually had active subscriptions
+            if self.active_subscriptions:
+                req_forget = {"forget_all": "ticks"}
+                task = asyncio.create_task(self._send_receive(req_forget), name="deriv_forget_all_ticks")
+                task.add_done_callback(log_task_exception)
+                self.active_subscriptions.clear()
+
+            # Now subscribe to the new desired ones
+            for deriv_symbol in desired_deriv_symbols:
+                self.active_subscriptions.add(deriv_symbol)
+                req_sub = {
+                    "ticks": deriv_symbol,
+                    "subscribe": 1
+                }
+                task = asyncio.create_task(self._send_receive(req_sub), name=f"deriv_subscribe_{deriv_symbol}")
+                task.add_done_callback(log_task_exception)
+
+            print(f"[DERIV] Updated tick subscriptions. Now tracking: {list(desired_instruments)}")
 
     async def get_active_synthetics(self) -> List[Dict[str, Any]]:
         """Obtiene la lista completa de índices sintéticos de Deriv."""
