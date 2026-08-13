@@ -233,52 +233,63 @@ class SupabaseService:
             print(f"Error fetching active instruments statuses: {e}")
             return {}
 
-    def sync_synthetics(self, synthetics_list: list) -> None:
-        """Syncs the list of synthetic instruments to the database without overwriting existing ones."""
+    def sync_instruments(self, instruments_list: list) -> None:
+        """Syncs the list of instruments to the database, updating pip_size without overwriting is_active."""
         if not self.is_configured:
             return
 
-        records = []
-        for synth in synthetics_list:
-            # Deriv API sometimes returns "symbol" or "underlying_symbol" depending on the endpoint/version
-            symbol = synth.get("symbol") or synth.get("underlying_symbol")
+        records_to_insert = []
+        records_to_update = []
 
-            # For category, we prefer display name, but fallback to raw submarket strings (e.g. random_index)
-            submarket_raw = synth.get("submarket_display_name") or synth.get("submarket_name") or synth.get("submarket")
+        try:
+            existing_resp = self.client.table("active_instruments").select("instrument, pip_size").execute()
+            existing_instruments = {row["instrument"]: row.get("pip_size") for row in existing_resp.data}
+        except Exception as e:
+            print(f"Error fetching existing instruments: {e}")
+            return
+
+        for inst in instruments_list:
+            symbol = inst.get("symbol") or inst.get("underlying_symbol")
+            submarket_raw = inst.get("submarket_display_name") or inst.get("submarket_name") or inst.get("submarket")
+            pip_size = inst.get("pip")
 
             if not symbol or not submarket_raw:
                 continue
 
-            # Clean up raw snake_case names if needed (e.g. random_index -> Random Index)
-            submarket = submarket_raw.replace("_", " ").title()
+            # For forex we use 'Forex' category to group them nicely, instead of raw submarkets like 'major_pairs'
+            market = inst.get("market")
+            if market == "forex":
+                category = "Forex"
+            else:
+                category = submarket_raw.replace("_", " ").title()
 
-            records.append({
-                "instrument": symbol,
-                "category": submarket,
-                "is_active": False  # Default to false for new ones
-            })
-
-        if not records:
-            return
+            if symbol not in existing_instruments:
+                records_to_insert.append({
+                    "instrument": symbol,
+                    "category": category,
+                    "is_active": False,
+                    "pip_size": pip_size
+                })
+            elif existing_instruments[symbol] != pip_size and pip_size is not None:
+                records_to_update.append({
+                    "instrument": symbol,
+                    "pip_size": pip_size
+                })
 
         try:
-            # We use ignore_duplicates=True so it only inserts missing ones.
-            # We cannot do standard upsert if we want to preserve is_active.
-            # No on_conflict support in Supabase py client for ignore yet, so we insert with ignore_duplicates.
-            # Using raw postgrest .insert(records).execute() won't ignore by default.
-            # Actually, standard behavior without upsert is to fail the batch.
-            # A better way is to insert one by one or fetch existing.
-            existing_resp = self.client.table("active_instruments").select("instrument").execute()
-            existing_instruments = {row["instrument"] for row in existing_resp.data}
+            if records_to_insert:
+                self.client.table("active_instruments").insert(records_to_insert).execute()
+                print(f"Synced {len(records_to_insert)} new instruments.")
 
-            new_records = [r for r in records if r["instrument"] not in existing_instruments]
+            # Update pip_size for existing records that are missing it or have it wrong
+            for record in records_to_update:
+                self.client.table("active_instruments").update({"pip_size": record["pip_size"]}).eq("instrument", record["instrument"]).execute()
 
-            if new_records:
-                self.client.table("active_instruments").insert(new_records).execute()
-                print(f"Synced {len(new_records)} new synthetic instruments.")
+            if records_to_update:
+                print(f"Updated pip_size for {len(records_to_update)} instruments.")
 
         except Exception as e:
-            print(f"Error syncing synthetics: {e}")
+            print(f"Error syncing instruments: {e}")
 
 # Global instance
 db_client = SupabaseService()

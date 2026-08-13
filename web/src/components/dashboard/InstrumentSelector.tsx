@@ -134,7 +134,7 @@ export function InstrumentSelector({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full md:w-auto gap-2 bg-white dark:bg-[#131722] border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
       >
-        <span className="truncate">{getLabel(selectedInstrument)}</span>
+        <span className="truncate">{selectedInstrument ? getLabel(selectedInstrument) : 'Seleccionar...'}</span>
         <ChevronDown className={cn("w-4 h-4 text-gray-500 transition-transform", isOpen ? "rotate-180" : "")} />
       </button>
 

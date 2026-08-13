@@ -20,7 +20,7 @@ const TIMEFRAMES_INTERNAL = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
 
 export function Dashboard() {
   const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
-  const [instrument, setInstrument] = useState(DEFAULT_FOREX[0]);
+  const [instrument, setInstrument] = useState('');
 
   // Data for selector
   const [forexInstruments, setForexInstruments] = useState<string[]>(DEFAULT_FOREX);
@@ -48,6 +48,7 @@ export function Dashboard() {
 
   // Active Instrument state
   const [isInstrumentActive, setIsInstrumentActive] = useState(false);
+  const [instrumentPips, setInstrumentPips] = useState<Record<string, number>>({});
 
   // Load active instruments from DB on mount
   useEffect(() => {
@@ -56,7 +57,7 @@ export function Dashboard() {
       try {
         const { data, error } = await supabase
           .from('active_instruments')
-          .select('instrument, category');
+          .select('instrument, category, pip_size');
 
         if (error) {
           console.error("Failed to load instruments:", error);
@@ -72,7 +73,12 @@ export function Dashboard() {
           const forex: string[] = [];
           const synthMap: Record<string, string[]> = {};
 
+          const pipsRecord: Record<string, number> = {};
+
           data.forEach(item => {
+            if (item.pip_size !== null) {
+              pipsRecord[item.instrument] = Number(item.pip_size);
+            }
             if (item.category === 'Forex') {
               forex.push(item.instrument);
             } else {
@@ -82,6 +88,8 @@ export function Dashboard() {
               synthMap[item.category].push(item.instrument);
             }
           });
+
+          setInstrumentPips(pipsRecord);
 
           if (forex.length > 0) setForexInstruments(forex);
 
@@ -118,12 +126,14 @@ export function Dashboard() {
   // and the current instrument isn't in that category. This fixes the sync state warning.
   useEffect(() => {
     const syncInstrument = () => {
+      if (!instrument) return; // Skip logic if instrument is empty initially
+
       if (category === 'Forex' && !forexInstruments.includes(instrument)) {
-        setInstrument(forexInstruments[0] || 'EUR_USD');
+        setInstrument(''); // Reset to empty when switching categories
       } else if (category === 'Sintéticos') {
         const allSynths = syntheticGroups.flatMap(g => g.items);
         if (allSynths.length > 0 && !allSynths.includes(instrument)) {
-          setInstrument(allSynths[0]);
+          setInstrument(''); // Reset to empty when switching categories
         }
       }
     };
@@ -133,7 +143,7 @@ export function Dashboard() {
 
   // Effect 1: Instrument Data Fetch (Traces & Status)
   useEffect(() => {
-    if (loading) return;
+    if (loading || !instrument) return;
 
     const fetchInstrumentData = async () => {
       setIsTracesLoading(true);
@@ -430,6 +440,20 @@ export function Dashboard() {
 
       {(category !== 'Forex' && category !== 'Sintéticos') ? (
         <EmptyState message={`${category} próximamente...`} />
+      ) : !instrument ? (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4 animate-in fade-in duration-500">
+          <div className="w-24 h-24 mb-6 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-900/20">
+            <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+            Bienvenido a QuantDesk AI
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md text-lg">
+            Selecciona un instrumento del menú superior para comenzar a monitorear los análisis y señales del mercado.
+          </p>
+        </div>
       ) : (loading || dataLoading) ? (
          <div className="flex items-center justify-center h-[60vh]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -531,7 +555,7 @@ export function Dashboard() {
               </div>
             )}
             <div className="flex-1 min-h-[400px]">
-              <ChartWidget candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} />
+              <ChartWidget candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} pipSize={instrumentPips[instrument]} />
             </div>
           </div>
         </div>
