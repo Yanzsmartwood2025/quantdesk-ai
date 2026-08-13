@@ -345,6 +345,12 @@ class DerivClient:
             "active_symbols": "full"
         }
         data = await self._send_receive(req)
+
+        # Diagnostic logging for active synthetics
+        print(f"[DERIV] get_active_synthetics raw response: {data}")
+        if "error" in data:
+            print(f"[DERIV ERROR] Failed to fetch active synthetics. Error details: {data['error']}")
+
         active_symbols = data.get("active_symbols", [])
 
         synthetics = []
