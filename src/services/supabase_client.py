@@ -240,10 +240,17 @@ class SupabaseService:
 
         records = []
         for synth in synthetics_list:
-            symbol = synth.get("symbol")
-            submarket = synth.get("submarket_display_name")
-            if not symbol or not submarket:
+            # Deriv API sometimes returns "symbol" or "underlying_symbol" depending on the endpoint/version
+            symbol = synth.get("symbol") or synth.get("underlying_symbol")
+
+            # For category, we prefer display name, but fallback to raw submarket strings (e.g. random_index)
+            submarket_raw = synth.get("submarket_display_name") or synth.get("submarket_name") or synth.get("submarket")
+
+            if not symbol or not submarket_raw:
                 continue
+
+            # Clean up raw snake_case names if needed (e.g. random_index -> Random Index)
+            submarket = submarket_raw.replace("_", " ").title()
 
             records.append({
                 "instrument": symbol,
