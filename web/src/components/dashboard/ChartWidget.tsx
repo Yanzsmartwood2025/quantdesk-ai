@@ -84,7 +84,7 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [resolvedTheme]);
+  }, [resolvedTheme, pipSize]);
 
   // Effect A: Initial Candles Load
   useEffect(() => {
