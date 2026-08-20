@@ -86,8 +86,8 @@ export function ReasoningFeed({ traces, isPaused }: ReasoningFeedProps) {
                   else if (signal === 'SELL') { signalIcon = TrendingDown; signalColor = "text-red-500"; }
                   else { signalIcon = Minus; signalColor = "text-gray-400"; }
                } else if (trace.agent_role === 'risk_manager') {
-                  reasoningText = (outputs.reasoning as string) || `Riesgo aprobado: ${outputs.approved}`;
-                  if (outputs.approved) { signalIcon = TrendingUp; signalColor = "text-green-500"; }
+                  reasoningText = (outputs.reasoning as string) || `Riesgo aprobado: ${outputs.is_approved}`;
+                  if (outputs.is_approved) { signalIcon = TrendingUp; signalColor = "text-green-500"; }
                   else { signalIcon = Minus; signalColor = "text-red-500"; }
                } else if (trace.agent_role === 'portfolio_manager') {
                   reasoningText = (outputs.reasoning as string) || (outputs.action as string) || "Decisión final tomada.";
@@ -122,7 +122,7 @@ export function ReasoningFeed({ traces, isPaused }: ReasoningFeedProps) {
                   {signalIcon && (
                     <div className="flex items-center gap-1 mt-1">
                        <span className={cn("text-xs font-semibold px-2 py-0.5 rounded border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50", signalColor)}>
-                          {outputs?.signal || outputs?.action || (outputs?.approved ? 'APPROVED' : 'REJECTED')}
+                          {outputs?.signal || outputs?.action || (outputs?.is_approved ? 'APPROVED' : 'REJECTED')}
                        </span>
                     </div>
                   )}

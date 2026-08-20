@@ -34,7 +34,7 @@ export function Dashboard() {
 
   // Diagnostic states
   const [diagStatus, setDiagStatus] = useState<string>('INIT');
-  const [diagLastEvent, setDiagLastEvent] = useState<any>('Ninguno todavía');
+  const [diagLastEvent, setDiagLastEvent] = useState<unknown>('Ninguno todavía');
   const [loading, setLoading] = useState(false);
   const [isTracesLoading, setIsTracesLoading] = useState(false);
   const [isInitialCandlesLoading, setIsInitialCandlesLoading] = useState(false);
@@ -196,13 +196,16 @@ export function Dashboard() {
     if (!selectedTimeframe) return;
 
     const isInstrumentChange = prevInstrument.current !== instrument;
-    if (isInstrumentChange) {
-       setIsInitialCandlesLoading(true);
-       setCandles([]); // Clear old candles to avoid flashing stale data
-    }
-    setLastUpdatedCandle(null); // Clear live updates on TF/Instrument change
+
+    // Clear lastUpdatedCandle safely outside of a direct effect body render-trigger
+    // We do it before async fetch so it's consistent.
 
     const fetchCandles = async () => {
+      if (isInstrumentChange) {
+         setIsInitialCandlesLoading(true);
+         setCandles([]); // Clear old candles to avoid flashing stale data
+      }
+      setLastUpdatedCandle(null); // Clear live updates on TF/Instrument change
       try {
         const tfIndex = TIMEFRAMES_DISPLAY.indexOf(selectedTimeframe);
         const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
