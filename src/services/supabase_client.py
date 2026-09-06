@@ -234,21 +234,40 @@ class SupabaseService:
             return {}
 
     def sync_instruments(self, instruments_list: list) -> None:
-        """Syncs the list of instruments to the database, updating pip_size without overwriting is_active."""
+        """Syncs the list of instruments to the database, updating pip_size and market without overwriting is_active."""
         if not self.is_configured:
             return
+
+        MARKET_LABELS = {
+            "forex": "Forex",
+            "synthetic_index": "Sintéticos",
+            "cryptocurrency": "Cripto",
+            "indices": "Índices",
+            "commodities": "Commodities",
+        }
 
         records_to_insert = []
         records_to_update = []
 
         try:
-            existing_resp = self.client.table("active_instruments").select("instrument, pip_size").execute()
-            existing_instruments = {row["instrument"]: row.get("pip_size") for row in existing_resp.data}
+            existing_resp = self.client.table("active_instruments").select("instrument, pip_size, market").execute()
+            existing_instruments = {
+                row["instrument"]: {
+                    "pip_size": row.get("pip_size"),
+                    "market": row.get("market")
+                }
+                for row in existing_resp.data
+            }
         except Exception as e:
             print(f"Error fetching existing instruments: {e}")
             return
 
         for inst in instruments_list:
+            raw_market = inst.get("market")
+            if raw_market not in MARKET_LABELS:
+                continue
+
+            market_label = MARKET_LABELS[raw_market]
             symbol = inst.get("symbol") or inst.get("underlying_symbol")
             submarket_raw = inst.get("submarket_display_name") or inst.get("submarket_name") or inst.get("submarket")
             pip_size = inst.get("pip")
@@ -256,37 +275,40 @@ class SupabaseService:
             if not symbol or not submarket_raw:
                 continue
 
-            # For forex we use 'Forex' category to group them nicely, instead of raw submarkets like 'major_pairs'
-            market = inst.get("market")
-            if market == "forex":
-                category = "Forex"
-            else:
-                category = submarket_raw.replace("_", " ").title()
+            category = submarket_raw.replace("_", " ").title()
 
             if symbol not in existing_instruments:
                 records_to_insert.append({
                     "instrument": symbol,
                     "category": category,
+                    "market": market_label,
                     "is_active": False,
                     "pip_size": pip_size
                 })
-            elif existing_instruments[symbol] != pip_size and pip_size is not None:
-                records_to_update.append({
-                    "instrument": symbol,
-                    "pip_size": pip_size
-                })
+            else:
+                existing_item = existing_instruments[symbol]
+                update_fields = {}
+                if existing_item.get("pip_size") != pip_size and pip_size is not None:
+                    update_fields["pip_size"] = pip_size
+                if existing_item.get("market") != market_label:
+                    update_fields["market"] = market_label
+
+                if update_fields:
+                    records_to_update.append({
+                        "instrument": symbol,
+                        "update_fields": update_fields
+                    })
 
         try:
             if records_to_insert:
                 self.client.table("active_instruments").insert(records_to_insert).execute()
                 print(f"Synced {len(records_to_insert)} new instruments.")
 
-            # Update pip_size for existing records that are missing it or have it wrong
             for record in records_to_update:
-                self.client.table("active_instruments").update({"pip_size": record["pip_size"]}).eq("instrument", record["instrument"]).execute()
+                self.client.table("active_instruments").update(record["update_fields"]).eq("instrument", record["instrument"]).execute()
 
             if records_to_update:
-                print(f"Updated pip_size for {len(records_to_update)} instruments.")
+                print(f"Updated {len(records_to_update)} instruments.")
 
         except Exception as e:
             print(f"Error syncing instruments: {e}")

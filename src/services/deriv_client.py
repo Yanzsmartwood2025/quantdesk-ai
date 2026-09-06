@@ -370,7 +370,7 @@ class DerivClient:
         valid_instruments = []
         for symbol in active_symbols:
             market = symbol.get("market")
-            if market in ("synthetic_index", "forex"):
+            if market in ("synthetic_index", "forex", "commodities", "cryptocurrency", "indices"):
                 valid_instruments.append(symbol)
 
         return valid_instruments
