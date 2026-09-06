@@ -41,7 +41,7 @@ echo "Selected Subnet OCID: $SUBNET_ID"
 echo "Fetching latest Canonical Ubuntu image..."
 IMAGES_JSON=$(oci compute image list --compartment-id "$OCI_TENANCY_OCID" --region "$OCI_REGION" --shape "VM.Standard.E2.1.Micro" --all --output json)
 
-IMAGE_ID=$(echo "$IMAGES_JSON" | jq -r '.data[] | select((.["operating-system"] // "") == "Canonical Ubuntu" and ((.name // "") | test("24\\.04|22\\.04")) and ((.["operating-system-version"] // "") | test("24\\.04|22\\.04"))) | .id' | head -n 1 || true)
+IMAGE_ID=$(echo "$IMAGES_JSON" | jq -r '.data[] | select((.["operating-system"] // "") == "Canonical Ubuntu" and ((.["operating-system-version"] // "") | test("24\\.04|22\\.04"))) | .id' | head -n 1 || true)
 
 # Fallback: filter by display-name / name containing Canonical-Ubuntu
 if [[ -z "$IMAGE_ID" || "$IMAGE_ID" == "null" ]]; then
