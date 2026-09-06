@@ -54,6 +54,8 @@ if [[ -z "$IMAGE_ID" || "$IMAGE_ID" == "null" ]]; then
 fi
 
 if [[ -z "$IMAGE_ID" || "$IMAGE_ID" == "null" ]]; then
+  echo "DEBUG - Imágenes disponibles (operating-system | name | operating-system-version):"
+  echo "$IMAGES_JSON" | jq -r '.data[] | "\(.["operating-system"] // "null") | \(.name // "null") | \(.["operating-system-version"] // "null")"' | sort -u
   echo "Error: Could not find suitable Ubuntu 24.04/22.04 image."
   exit 1
 fi
