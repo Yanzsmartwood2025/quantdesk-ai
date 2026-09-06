@@ -19,6 +19,7 @@ env:
 jobs:
   hunt:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,7 +31,7 @@ jobs:
 
       - name: Install OCI CLI
         run: |
-          pip install --quiet oci-cli
+          pip install --quiet "oci-cli==3.53.0"
 
       - name: Configure OCI Credentials
         env:
