@@ -23,8 +23,7 @@ export function Dashboard() {
   const [instrument, setInstrument] = useState('');
 
   // Data for selector
-  const [forexInstruments, setForexInstruments] = useState<string[]>(DEFAULT_FOREX);
-  const [syntheticGroups, setSyntheticGroups] = useState<InstrumentGroup[]>([]);
+  const [instrumentsByMarket, setInstrumentsByMarket] = useState<Record<string, InstrumentGroup[]>>({});
 
   const [timeframes, setTimeframes] = useState<string[]>([]); // Display values
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(''); // Display value ('1H')
@@ -57,63 +56,76 @@ export function Dashboard() {
       try {
         const { data, error } = await supabase
           .from('active_instruments')
-          .select('instrument, category, pip_size');
+          .select('instrument, category, market, pip_size');
 
         if (error) {
           console.error("Failed to load instruments:", error);
-          // Set some fallback mock data so we can verify the UI without DB
-          setSyntheticGroups([
-             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-          ]);
+          // Set fallback mock data
+          setInstrumentsByMarket({
+            'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
+            'Sintéticos': [
+              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
+              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
+            ]
+          });
           return;
         }
 
         if (data && data.length > 0) {
-          const forex: string[] = [];
-          const synthMap: Record<string, string[]> = {};
-
+          const marketCategoryMap: Record<string, Record<string, string[]>> = {};
           const pipsRecord: Record<string, number> = {};
 
           data.forEach(item => {
             if (item.pip_size !== null) {
               pipsRecord[item.instrument] = Number(item.pip_size);
             }
-            if (item.category === 'Forex') {
-              forex.push(item.instrument);
-            } else {
-              if (!synthMap[item.category]) {
-                synthMap[item.category] = [];
-              }
-              synthMap[item.category].push(item.instrument);
+
+            // Fallback for old records where market might be null
+            const mkt = item.market || (item.category === 'Forex' ? 'Forex' : 'Sintéticos');
+            const cat = item.category || 'General';
+
+            if (!marketCategoryMap[mkt]) {
+              marketCategoryMap[mkt] = {};
             }
+            if (!marketCategoryMap[mkt][cat]) {
+              marketCategoryMap[mkt][cat] = [];
+            }
+            marketCategoryMap[mkt][cat].push(item.instrument);
           });
 
           setInstrumentPips(pipsRecord);
 
-          if (forex.length > 0) setForexInstruments(forex);
+          const byMarket: Record<string, InstrumentGroup[]> = {};
+          Object.keys(marketCategoryMap).forEach(mkt => {
+            const categoriesObj = marketCategoryMap[mkt];
+            const groups: InstrumentGroup[] = Object.keys(categoriesObj).map(cat => ({
+              label: cat,
+              items: categoriesObj[cat].sort()
+            }));
+            groups.sort((a, b) => a.label.localeCompare(b.label));
+            byMarket[mkt] = groups;
+          });
 
-          const groups: InstrumentGroup[] = Object.keys(synthMap).map(key => ({
-            label: key,
-            items: synthMap[key].sort()
-          }));
-
-          // Sort groups alphabetically
-          groups.sort((a, b) => a.label.localeCompare(b.label));
-          setSyntheticGroups(groups);
+          setInstrumentsByMarket(byMarket);
         } else {
           // Mock for presentation if empty
-          setSyntheticGroups([
-             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-          ]);
+          setInstrumentsByMarket({
+            'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
+            'Sintéticos': [
+              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
+              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
+            ]
+          });
         }
       } catch (err) {
          console.error("Supabase fetch error", err);
-         setSyntheticGroups([
+         setInstrumentsByMarket({
+           'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
+           'Sintéticos': [
              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-          ]);
+           ]
+         });
       } finally {
         setLoading(false);
       }
@@ -122,24 +134,20 @@ export function Dashboard() {
     fetchInstruments();
   }, []);
 
-  // Use an effect to sync the selected instrument ONLY when category changes to a new one
-  // and the current instrument isn't in that category. This fixes the sync state warning.
+  // Reset instrument when switching categories if selected instrument is not in selected market
   useEffect(() => {
     const syncInstrument = () => {
-      if (!instrument) return; // Skip logic if instrument is empty initially
+      if (!instrument) return;
 
-      if (category === 'Forex' && !forexInstruments.includes(instrument)) {
-        setInstrument(''); // Reset to empty when switching categories
-      } else if (category === 'Sintéticos') {
-        const allSynths = syntheticGroups.flatMap(g => g.items);
-        if (allSynths.length > 0 && !allSynths.includes(instrument)) {
-          setInstrument(''); // Reset to empty when switching categories
-        }
+      const currentMarketGroups = instrumentsByMarket[category] || [];
+      const allMarketInstruments = currentMarketGroups.flatMap(g => g.items);
+
+      if (allMarketInstruments.length > 0 && !allMarketInstruments.includes(instrument)) {
+        setInstrument('');
       }
     };
     syncInstrument();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, forexInstruments, syntheticGroups]);
+  }, [category, instrumentsByMarket, instrument]);
 
   // Effect 1: Instrument Data Fetch (Traces & Status)
   useEffect(() => {
@@ -412,38 +420,34 @@ export function Dashboard() {
             ))}
           </div>
 
-          {(category === 'Forex' || category === 'Sintéticos') && (
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <label className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">Instrumento:</label>
-              <InstrumentSelector
-                instruments={category === 'Forex' ? forexInstruments : []}
-                groups={category === 'Sintéticos' ? syntheticGroups : []}
-                selectedInstrument={instrument}
-                onSelect={setInstrument}
-                getLabel={getInstrumentLabel}
-              />
-              <button
-                onClick={toggleInstrumentActive}
-                className={`ml-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border ${
-                  isInstrumentActive
-                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50 dark:hover:bg-blue-500/30'
-                    : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 dark:bg-[#1a1f2e] dark:text-gray-400 dark:border-gray-700 dark:hover:bg-[#2a2f3e]'
-                }`}
-                title={isInstrumentActive ? 'Pausar análisis de IA' : 'Activar análisis de IA (consumirá tokens)'}
-              >
-                {isInstrumentActive ? 'Activo' : 'Pausado'}
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <label className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">Instrumento:</label>
+            <InstrumentSelector
+              instruments={category === 'Forex' ? (instrumentsByMarket['Forex'] || []).flatMap(g => g.items) : []}
+              groups={category !== 'Forex' ? (instrumentsByMarket[category] || []) : []}
+              selectedInstrument={instrument}
+              onSelect={setInstrument}
+              getLabel={getInstrumentLabel}
+            />
+            <button
+              onClick={toggleInstrumentActive}
+              className={`ml-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border ${
+                isInstrumentActive
+                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50 dark:hover:bg-blue-500/30'
+                  : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 dark:bg-[#1a1f2e] dark:text-gray-400 dark:border-gray-700 dark:hover:bg-[#2a2f3e]'
+              }`}
+              title={isInstrumentActive ? 'Pausar análisis de IA' : 'Activar análisis de IA (consumirá tokens)'}
+            >
+              {isInstrumentActive ? 'Activo' : 'Pausado'}
+            </button>
+          </div>
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
         </div>
       </header>
 
-      {(category !== 'Forex' && category !== 'Sintéticos') ? (
-        <EmptyState message={`${category} próximamente...`} />
-      ) : !instrument ? (
+      {!instrument ? (
         <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4 animate-in fade-in duration-500">
           <div className="w-24 h-24 mb-6 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-900/20">
             <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
