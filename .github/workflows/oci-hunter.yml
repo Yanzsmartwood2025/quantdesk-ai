@@ -34,24 +34,31 @@ jobs:
 
       - name: Configure OCI Credentials
         env:
-          OCI_CONFIG: |
-            [DEFAULT]
-            user=${{ secrets.OCI_USER_OCID }}
-            fingerprint=${{ secrets.OCI_FINGERPRINT }}
-            key_file=/home/runner/.oci/oci_api_key.pem
-            tenancy=${{ secrets.OCI_TENANCY_OCID }}
-            region=${{ secrets.OCI_REGION }}
-          OCI_KEY: ${{ secrets.OCI_KEY_FILE }}
-          SUPPRESS_LABEL_WARNING: "True"
+          OCI_USER: ${{ secrets.OCI_USER_OCID }}
+          OCI_FP: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_TENANT: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_REG: ${{ secrets.OCI_REGION }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_KEY_FILE }}
         run: |
           mkdir -p /home/runner/.oci
-          echo "$OCI_CONFIG" > /home/runner/.oci/config
-          echo "$OCI_KEY" > /home/runner/.oci/oci_api_key.pem
+
+          # Escribir config
+          cat << EOF > /home/runner/.oci/config
+          [DEFAULT]
+          user=${OCI_USER}
+          fingerprint=${OCI_FP}
+          key_file=/home/runner/.oci/oci_api_key.pem
+          tenancy=${OCI_TENANT}
+          region=${OCI_REG}
+          EOF
+
+          # Escribir la clave privada preservando estrictamente el formato exacto
+          printf "%s\n" "$OCI_PRIVATE_KEY" > /home/runner/.oci/oci_api_key.pem
+
           chmod 600 /home/runner/.oci/config /home/runner/.oci/oci_api_key.pem
 
-          # Verificación rápida del formato PEM en logs
-          head -n 1 /home/runner/.oci/oci_api_key.pem
-          tail -n 1 /home/runner/.oci/oci_api_key.pem
+          echo "=== Verificación de fingerprint en el runner ==="
+          openssl rsa -in /home/runner/.oci/oci_api_key.pem -pubout -outform DER 2>/dev/null | openssl md5 -c
 
       - name: Execute OCI Hunter Script
         env:
