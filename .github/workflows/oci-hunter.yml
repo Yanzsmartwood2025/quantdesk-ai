@@ -13,6 +13,9 @@ permissions:
   actions: write
   contents: read
 
+env:
+  SUPPRESS_LABEL_WARNING: "True"
+
 jobs:
   hunt:
     runs-on: ubuntu-latest
@@ -31,25 +34,24 @@ jobs:
 
       - name: Configure OCI Credentials
         env:
-          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
-          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
-          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-          OCI_REGION: ${{ secrets.OCI_REGION }}
-          OCI_KEY_FILE: ${{ secrets.OCI_KEY_FILE }}
+          OCI_CONFIG: |
+            [DEFAULT]
+            user=${{ secrets.OCI_USER_OCID }}
+            fingerprint=${{ secrets.OCI_FINGERPRINT }}
+            key_file=/home/runner/.oci/oci_api_key.pem
+            tenancy=${{ secrets.OCI_TENANCY_OCID }}
+            region=${{ secrets.OCI_REGION }}
+          OCI_KEY: ${{ secrets.OCI_KEY_FILE }}
+          SUPPRESS_LABEL_WARNING: "True"
         run: |
-          mkdir -p ~/.oci
-          echo "$OCI_KEY_FILE" > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
+          mkdir -p /home/runner/.oci
+          echo "$OCI_CONFIG" > /home/runner/.oci/config
+          echo "$OCI_KEY" > /home/runner/.oci/oci_api_key.pem
+          chmod 600 /home/runner/.oci/config /home/runner/.oci/oci_api_key.pem
 
-          cat << EOF > ~/.oci/config
-          [DEFAULT]
-          user=${OCI_USER_OCID}
-          fingerprint=${OCI_FINGERPRINT}
-          key_file=~/.oci/oci_api_key.pem
-          tenancy=${OCI_TENANCY_OCID}
-          region=${OCI_REGION}
-          EOF
-          chmod 600 ~/.oci/config
+          # Verificación rápida del formato PEM en logs
+          head -n 1 /home/runner/.oci/oci_api_key.pem
+          tail -n 1 /home/runner/.oci/oci_api_key.pem
 
       - name: Execute OCI Hunter Script
         env:
