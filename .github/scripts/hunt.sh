@@ -8,9 +8,14 @@ if [[ -z "${OCI_TENANCY_OCID:-}" ]]; then
   exit 1
 fi
 
+if [[ -z "${OCI_REGION:-}" ]]; then
+  echo "Error: OCI_REGION is not set."
+  exit 1
+fi
+
 # 1. Fetch Availability Domains
 echo "Fetching Availability Domains..."
-ADS_JSON=$(oci iam availability-domain list --compartment-id "$OCI_TENANCY_OCID" --output json 2>/dev/null)
+ADS_JSON=$(oci iam availability-domain list --compartment-id "$OCI_TENANCY_OCID" --region "$OCI_REGION" --output json)
 AD_NAMES=$(echo "$ADS_JSON" | jq -r '.data[].name' | sort)
 
 if [[ -z "$AD_NAMES" ]]; then
@@ -23,7 +28,7 @@ echo "$AD_NAMES"
 
 # 2. Fetch Public Subnet
 echo "Fetching public subnet..."
-SUBNETS_JSON=$(oci network subnet list --compartment-id "$OCI_TENANCY_OCID" --output json 2>/dev/null)
+SUBNETS_JSON=$(oci network subnet list --compartment-id "$OCI_TENANCY_OCID" --region "$OCI_REGION" --output json)
 SUBNET_ID=$(echo "$SUBNETS_JSON" | jq -r '.data[] | select(.["prohibit-public-ip-on-vnic"] == false or .["prohibit-public-ip-on-vnic"] == null) | .id' | head -n 1)
 
 if [[ -z "$SUBNET_ID" || "$SUBNET_ID" == "null" ]]; then
@@ -34,7 +39,7 @@ echo "Selected Subnet OCID: $SUBNET_ID"
 
 # 3. Fetch Image (Canonical Ubuntu 24.04 or 22.04 for x86_64)
 echo "Fetching latest Canonical Ubuntu image..."
-IMAGES_JSON=$(oci compute image list --compartment-id "$OCI_TENANCY_OCID" --shape "VM.Standard.E2.1.Micro" --output json 2>/dev/null)
+IMAGES_JSON=$(oci compute image list --compartment-id "$OCI_TENANCY_OCID" --region "$OCI_REGION" --shape "VM.Standard.E2.1.Micro" --output json)
 
 IMAGE_ID=$(echo "$IMAGES_JSON" | jq -r '.data[] | select(.["operating-system"] == "Canonical Ubuntu" and (.name | test("24\\.04|22\\.04")) and (.["operating-system-version"] | test("24\\.04|22\\.04"))) | .id' | head -n 1)
 
@@ -45,7 +50,7 @@ fi
 
 # General fallback for any Ubuntu image
 if [[ -z "$IMAGE_ID" || "$IMAGE_ID" == "null" ]]; then
-  IMAGE_ID=$(oci compute image list --compartment-id "$OCI_TENANCY_OCID" --output json 2>/dev/null | jq -r '.data[] | select(.name | test("Canonical-Ubuntu-(24\\.04|22\\.04)")) | .id' | head -n 1)
+  IMAGE_ID=$(oci compute image list --compartment-id "$OCI_TENANCY_OCID" --region "$OCI_REGION" --output json | jq -r '.data[] | select(.name | test("Canonical-Ubuntu-(24\\.04|22\\.04)")) | .id' | head -n 1)
 fi
 
 if [[ -z "$IMAGE_ID" || "$IMAGE_ID" == "null" ]]; then
@@ -84,6 +89,7 @@ for ROUND in {1..3}; do
       --image-id "$IMAGE_ID"
       --subnet-id "$SUBNET_ID"
       --assign-public-ip true
+      --region "$OCI_REGION"
       --output json
     )
 
@@ -123,11 +129,11 @@ if [[ "$SUCCESS" == "true" ]]; then
   # Wait a few seconds for VNIC attachment to populate public IP
   for i in {1..6}; do
     echo "Polling VNIC attachments (attempt $i/6)..."
-    VNIC_ATTACHMENTS=$(oci compute instance list-vnics --instance-id "$INSTANCE_ID" --output json 2>/dev/null || true)
+      VNIC_ATTACHMENTS=$(oci compute instance list-vnics --instance-id "$INSTANCE_ID" --region "$OCI_REGION" --output json 2>/dev/null || true)
     VNIC_ID=$(echo "$VNIC_ATTACHMENTS" | jq -r '.data[0]."vnic-id" // empty' 2>/dev/null || true)
 
     if [[ -n "$VNIC_ID" && "$VNIC_ID" != "null" ]]; then
-      VNIC_INFO=$(oci network vnic get --vnic-id "$VNIC_ID" --output json 2>/dev/null || true)
+        VNIC_INFO=$(oci network vnic get --vnic-id "$VNIC_ID" --region "$OCI_REGION" --output json 2>/dev/null || true)
       IP=$(echo "$VNIC_INFO" | jq -r '.data["public-ip"] // empty' 2>/dev/null || true)
       if [[ -n "$IP" && "$IP" != "null" ]]; then
         PUBLIC_IP="$IP"
