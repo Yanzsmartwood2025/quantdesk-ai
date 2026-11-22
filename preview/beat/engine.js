@@ -67,13 +67,13 @@ export function advanceDemoCandles(candles,frame,code="DEMO"){
 
 export function describeItem(item) {
  if(!item)return "Ningún instrumento seleccionado. Solo se muestra un registro a la vez.";
- return item.code+" · "+item.group+" · "+item.subcategory+". Datos del catálogo histórico; las velas son una demostración matemática.";
+ return item.code+" · "+item.group+" · "+item.subcategory+". Es una muestra completamente inventada; las velas son una demostración matemática.";
 }
 export function getAgentMessages(item){
  const common=item?.code??"la muestra seleccionada";
  return [
-   {id:"observer",name:"Observador",role:"Lectura de evidencia",message:item?"Se encontró "+common+" en el catálogo histórico. No hay una cotización actual en esta vista.":"Selecciona un registro para consultar su ficha histórica."},
-   {id:"critic",name:"Verificador",role:"Cuestiona afirmaciones",message:"La clasificación no garantiza disponibilidad actual. Un gráfico generado localmente no sirve para comprobar movimientos reales."},
+   {id:"observer",name:"Observador",role:"Lectura de evidencia",message:item?"La muestra "+common+" es un ejemplo ficticio. No hay una cotización actual en esta vista.":"Selecciona un registro para consultar su ficha histórica."},
+   {id:"critic",name:"Verificador",role:"Cuestiona afirmaciones",message:"Las categorías sirven para enseñar organización de datos. Un gráfico generado localmente no sirve para comprobar movimientos reales."},
    {id:"presenter",name:"Presentador",role:"Resumen y voz",message:"Vista didáctica: un elemento abierto, cero conexiones externas, cero llamadas a modelos y ninguna operación."}
  ];
 }
