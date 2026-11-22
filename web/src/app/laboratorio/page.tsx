@@ -114,7 +114,7 @@ export default function EducationalWorkspace() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
               {collections.map(name => (
-                <button key={name} type="button" onClick={() => setCollection(name)}
+                <button key={name} type="button" onClick={() => { setCollection(name); const first = examples.find(item => name === "Todas" || item.collection === name); if (first) setSelectedId(first.id); }}
                   aria-pressed={collection === name}
                   className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${collection === name ? "bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-400/30" : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"}`}>
                   {name}
