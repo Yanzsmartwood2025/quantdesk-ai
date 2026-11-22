@@ -54,11 +54,11 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
 
     // Add Candlestick series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#f0f0f0',
-      downColor: '#777777',
+      upColor: '#22c55e',
+      downColor: '#ef4444',
       borderVisible: false,
-      wickUpColor: '#f0f0f0',
-      wickDownColor: '#777777',
+      wickUpColor: '#22c55e',
+      wickDownColor: '#ef4444',
       priceFormat: {
         type: 'price',
         precision: precision,
@@ -88,10 +88,14 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
 
   // Effect A: Initial Candles Load
   useEffect(() => {
-    if (!seriesRef.current || candles.length === 0) return;
+    if (!seriesRef.current) return;
+    if (candles.length === 0) {
+      seriesRef.current.setData([]); // Remove the previous instrument's candles.
+      return;
+    }
 
     // Format candles for lightweight-charts
-    const chartData = candles
+    const chartData = [...candles]
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
       .map(candle => ({
         time: (new Date(candle.timestamp).getTime() / 1000) as Time,
