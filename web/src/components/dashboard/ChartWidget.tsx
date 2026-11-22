@@ -27,12 +27,12 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: isDark ? '#d1d4dc' : '#374151',
+        textColor: isDark ? '#dedede' : '#555555',
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: isDark ? 'rgba(42, 46, 57, 0.5)' : 'rgba(229, 231, 235, 0.5)' },
-        horzLines: { color: isDark ? 'rgba(42, 46, 57, 0.5)' : 'rgba(229, 231, 235, 0.5)' },
+        vertLines: { color: isDark ? 'rgba(70, 70, 70, 0.35)' : 'rgba(210, 210, 210, 0.32)' },
+        horzLines: { color: isDark ? 'rgba(70, 70, 70, 0.35)' : 'rgba(210, 210, 210, 0.32)' },
       },
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight,
@@ -54,11 +54,11 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
 
     // Add Candlestick series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
+      upColor: '#f0f0f0',
+      downColor: '#777777',
       borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      wickUpColor: '#f0f0f0',
+      wickDownColor: '#777777',
       priceFormat: {
         type: 'price',
         precision: precision,
@@ -147,7 +147,7 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
           return {
             time,
             position: 'belowBar',
-            color: '#26a69a',
+            color: '#f0f0f0',
             shape: 'arrowUp',
             text: 'BUY',
           } as SeriesMarker<Time>;
@@ -155,7 +155,7 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
           return {
             time,
             position: 'aboveBar',
-            color: '#ef5350',
+            color: '#777777',
             shape: 'arrowDown',
             text: 'SELL',
           } as SeriesMarker<Time>;
@@ -169,7 +169,7 @@ export function ChartWidget({ candles, traces, lastUpdatedCandle, pipSize }: Cha
   }, [traces, resolvedTheme]);
 
   return (
-    <div className="w-full h-full bg-white dark:bg-[#131722] rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col transition-colors duration-300">
+    <div className="w-full h-full bg-white dark:bg-[#101010] rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col transition-colors duration-300">
        <div className="flex-1 w-full h-full" ref={chartContainerRef} />
     </div>
   );
