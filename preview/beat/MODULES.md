@@ -1,25 +1,32 @@
-# Beat Studio — módulos de demostración
+# Beat Studio — interfaz educativa modular
 
-Este directorio es una **vista previa pública de lectura**, separada del frontend Next.js y del backend Python. No es una plataforma de negociación.
+**Este prototipo es completamente ficticio.** No se conecta con Deriv, Supabase, TradingView, plataformas de inversión ni API externas. No contiene nombres de símbolos reales, precios actuales, señales ni operaciones.
 
-## Componentes
-- `index.html`: interfaz y regiones accesibles.
-- `styles.css`: diseño monocromático espacial, velas ficticias verdes/rojas, navegación móvil.
-- `catalog.js`: instantánea de **53 identificadores que ya existían** en la base `quantdesk-ai` al 22-11-2026. Los campos son nombre, mercado y subcategoría. No incluye precios, credenciales ni datos personales. Cripto, índices y materias primas siguen vacíos; esto refleja lo guardado, no el catálogo completo de ningún proveedor.
-- `engine.js`: estado de la vista, presupuesto de consumo fijo y datos matemáticos ficticios. No llama a Internet.
-- `app.js`: controlador UI, selector de un único elemento, gráfico local, tres roles explicativos y voz del navegador a petición.
+## Módulos independientes
 
-## Reglas invariables de arquitectura
-1. **Catálogo != procesamiento.** Tener 53 identificadores no implica suscribirse a 53 flujos.
-2. **Sólo una selección visible.** Al cambiar de categoría o instrumento se cierra el anterior; no existe una cola de trabajo ni llamadas a API.
-3. **Fallos seguros.** No se crean instrumentos de relleno ni datos reales falsos.
-4. **Nunca guardar secretos en el navegador.** Sin `service_role`, tokens ni variables de entorno privadas.
-5. **Agentes separados.** `Observador` enumera hechos; `Verificador` cuestiona limitaciones; `Presentador` sintetiza. Son mensajes predefinidos, **no modelos LLM**.
-6. **Voz manual.** `speechSynthesis` solo se invoca tras pulsar. Es una capacidad proporcionada por el navegador, no Deepgram ni una llamada pagada de la aplicación.
-7. **Límites:** 1 selección, 0 suscripciones, 0 cron, 0 solicitudes a Supabase/Deriv/IA, $0 de gasto causado por peticiones externas de la aplicación. El hosting puede tener cuotas propias del proveedor.
-8. **Toda gráfica es explícitamente ficticia.** No es una cotización ni señal.
-9. **Sin actividad financiera.** No incorpora operaciones, recomendaciones de compra/venta, estadísticas de rentabilidad ni conexiones a brokers.
-10. **No recargar mientras se esté viendo.** No polling, no temporizadores, no procesos permanentes.
+| Archivo | Responsabilidad |
+|---|---|
+| `index.html` | Estructura accesible de la aplicación, bandeja modal, área central, paneles y controles |
+| `styles.css` | Diseño espacial blanco/negro; verde y rojo únicamente para velas ficticias |
+| `catalog.js` | 30 muestras **inventadas**: seis por categoría (Forex, Sintéticos, Cripto, Índices, Commodities) |
+| `engine.js` | Estado único seleccionado, presupuesto fijo, velas matemáticas y movimiento ficticio |
+| `app.js` | Navegación, bandeja y búsqueda, periodos, animación voluntaria, voz local, limpieza de recursos |
 
-## Pruebas estáticas
-Revisar `index.html`, `app.js`, `engine.js`, `catalog.js`, `styles.css` para garantizar que la interfaz no contiene conexiones externas. En cualquier futura ampliación, mantener cada adaptador en un módulo con autorización separada y pruebas de consumo. En esta demostración dichos adaptadores no existen.
+## Reglas verificables
+1. **Una sola vista:** elegir otra muestra reemplaza la anterior. Cambiar de grupo la cierra.
+2. **La bandeja se abre al pulsar un grupo** o el botón "Explorar bandeja"; el buscador también la abre. Se cierra con × o Escape.
+3. **Temporales de ejemplo:** `1m`, `5m`, `15m`, `30m`, `1H`, `4H` y `1D`. Es una explicación didáctica de la agrupación temporal, no una cotización.
+4. **Animación:** solo al pulsar "Animar vela"; una sola tarea local cada 1250 ms; se detiene al cerrar, cambiar de muestra, cambiar de periodo, ocultar la pestaña o salir.
+5. Cada cinco cuadros acelerados avanza a una vela nueva, independientemente del intervalo elegido. **El tiempo de la animación NO coincide con minutos u horas reales.**
+6. **Color:** velas ficticias ascendentes `#22c55e`, descendentes `#ef4444`; resto en escala de grises.
+7. **Sin consultas:** ninguna llamada HTTP a proveedores ni base de datos, sin WebSocket, cron, órdenes o servicios de IA. La descarga de los archivos estáticos sí utiliza el hosting Vercel.
+8. **Agentes separados:** Observador, Verificador y Presentador tienen explicaciones predefinidas, no modelos remotos. La voz de `speechSynthesis` se inicia únicamente tras interacción.
+9. **Iconos:** marcadores neutros por categoría, no logotipos oficiales ni símbolos de cotización. No se inventa que una API suministra logos.
+10. **Presupuesto:** máximo una selección visual; 0 consultas externas a API; 0 ejecuciones de IA; 0 suscripciones. El costo de hosting se rige por el plan de Vercel.
+11. **No se modifica el repositorio original en producción** ni las tablas de la cuenta Supabase.
+
+## Pruebas
+Comprobar los cambios con `node --test preview/beat/tests/demo-smoke.test.cjs` desde la raíz del repositorio. El sitio desplegado debe mostrar cinco categorías y una bandeja funcional. No requiere credenciales.
+
+## Limitaciones
+Esta maqueta **no obtiene** un inventario vigente de ninguna plataforma y no sincroniza periodos con un mercado. Todo movimiento de velas es una simulación educativa.
