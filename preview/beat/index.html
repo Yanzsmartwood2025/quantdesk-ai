@@ -25,7 +25,7 @@
       <button id="reset" class="glass-btn square" title="Restablecer vista" aria-label="Restablecer vista">↻</button>
     </nav>
     <div class="glass selector-wrap">
-      <div class="section-label">01 / BIBLIOTECA DE DATOS <span class="subtle">Instantánea histórica · Sin cotizaciones</span></div>
+      <div class="section-label">01 / BIBLIOTECA DE DATOS <span class="subtle">30 muestras ficticias · Sin cotizaciones</span></div>
       <div class="tabs" id="tabs" role="tablist" aria-label="Categorías de instrumentos"></div>
       <div class="search-row">
         <div class="search-control">
@@ -35,7 +35,7 @@
         </div>
         <button id="chooser" class="glass-btn" aria-haspopup="dialog" aria-controls="catalog-dialog">Explorar bandeja</button>
       </div>
-      <p class="helper">El buscador abre una bandeja de demostración. Solo se exploran los registros previamente guardados; ninguna categoría realiza solicitudes externas.</p>
+      <p class="helper">Pulsa cualquier categoría para abrir su bandeja. Todos los ejemplos son ficticios y no se consultan servicios financieros.</p>
       <dialog id="catalog-dialog" class="catalog-dialog" aria-labelledby="catalog-title">
         <div class="drawer-head">
           <div><div class="section-label">BIBLIOTECA / CATEGORÍAS</div><h3 id="catalog-title">Seleccionar una muestra</h3>
@@ -48,7 +48,7 @@
           <input id="drawer-query" type="search" placeholder="Buscar en la categoría actual..." autocomplete="off"/>
         </div>
         <section id="catalog" class="catalog" aria-label="Listado de muestras guardadas"></section>
-        <p class="muted caption drawer-note">Los símbolos de esta demostración proceden de una instantánea histórica. No se consultan precios, disponibilidad ni señales.</p>
+        <p class="muted caption drawer-note">Nombres y símbolos completamente inventados. No se consultan precios, disponibilidad ni señales.</p>
       </dialog>
     </div>
     <div class="columns">
@@ -74,10 +74,10 @@
         <div class="chart-foot"><span>● VERDE · SUBIDA</span><span>● ROJO · BAJADA</span><span>SIMULACIÓN ACELERADA · NO ES TIEMPO REAL</span></div>
       </section>
       <aside class="sidebar">
-        <div class="panel"><div class="section-label">03 / FICHA DE DATOS</div><h3 id="fact-name">Ningún registro</h3><dl id="facts"><div><dt>Fuente</dt><dd>Instantánea histórica</dd></div><div><dt>Conexiones en curso</dt><dd>0</dd></div></dl></div>
+        <div class="panel"><div class="section-label">03 / FICHA DE DATOS</div><h3 id="fact-name">Ningún registro</h3><dl id="facts"><div><dt>Fuente</dt><dd>Muestras ficticias</dd></div><div><dt>Conexiones en curso</dt><dd>0</dd></div></dl></div>
         <div class="panel"><div class="section-label">04 / CONTROL DE RECURSOS</div><h3>Consumo protegido</h3>
           <dl><div><dt>Elementos simultáneos</dt><dd id="open-count">0 / 1</dd></div><div><dt>Consultas externas</dt><dd>0</dd></div><div><dt>Solicitudes a IA</dt><dd>0</dd></div><div><dt>Suscripciones</dt><dd>0</dd></div><div><dt>Costo externo</dt><dd>$0.00</dd></div></dl>
-          <p class="helper">El catálogo se descarga con la página. Cambiar de elemento no activa procesos.</p>
+          <p class="helper">Todas las muestras se descargan con la página. Cambiar de elemento no activa procesos.</p>
         </div>
       </aside>
     </div>
@@ -86,7 +86,7 @@
       <div id="agents" class="agent-grid"></div>
       <div class="agent-actions"><button class="glass-btn" id="speak">Escuchar resumen (voz del navegador)</button><button class="glass-btn" id="stop">Detener voz</button><span id="voice-status" aria-live="polite" class="caption muted">La voz se inicia solo al pulsar.</span></div>
     </section>
-    <footer>Beat Studio · Prototipo aislado · 53 registros históricos y categorías vacías visibles · Sin señales, órdenes, predicciones ni conexiones a proveedores</footer>
+    <footer>Beat Studio · Prototipo aislado · 30 muestras inventadas y categorías navegables · Sin cotizaciones, señales, órdenes ni conexiones a servicios financieros</footer>
   </main>
   <script src="./app.js" type="module"></script>
 </body>
