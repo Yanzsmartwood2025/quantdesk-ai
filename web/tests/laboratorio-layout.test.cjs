@@ -43,3 +43,45 @@ test("the interface identifies itself as an isolated demonstration", () => {
   assert.match(src, /Sin procesos automáticos/);
   assert.match(src, /sin APIs, sin órdenes, sin predicciones/);
 });
+
+const css = fs.readFileSync(path.join(__dirname, "../src/app/laboratorio/lab-glass.css"), "utf8");
+
+test("top browser-like controls are interactive and accessible", () => {
+  assert.match(src, /aria-label="Navegación de Quantum Lab"/);
+  assert.match(src, /href="\/" aria-label="Volver al inicio de Quantum"/);
+  assert.match(src, /onClick=\{resetWorkspace\}/);
+  assert.match(src, /onClick=\{\(\) => setShowList\(v => !v\)\}/);
+  assert.match(src, /aria-expanded=\{showList\}/);
+  assert.match(src, /q-browserbar/);
+  assert.match(src, /QUANTUM \/ LABORATORIO/);
+});
+
+test("monochrome space-glass styles are scoped and accessible", () => {
+  assert.match(src, /import "\.\/lab-glass\.css";/);
+  assert.match(css, /\.q-lab\s*\{/);
+  assert.match(css, /\.q-glass\s*\{/);
+  assert.match(css, /-webkit-backdrop-filter:\s*blur/);
+  assert.match(css, /\.q-panel\s*\{/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /forced-colors:\s*active/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.doesNotMatch(src + css, /\b(cyan|purple|blue|emerald|amber|rose|teal|indigo|fuchsia|lime)-\d+/);
+});
+
+test("all explicit hex RGB colors in the laboratory are grayscale", () => {
+  for (const color of (src + css).match(/#[0-9a-fA-F]{6}\b/g) ?? []) {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    assert.equal(r, g, color);
+    assert.equal(g, b, color);
+  }
+});
+
+test("glass lives in controls and navigation, with opaque chart surfaces", () => {
+  assert.match(src, /className="q-glass mb-4/);
+  assert.match(src, /className=\{\x60\$\{surface\} min-w-0 overflow-hidden\x60\}/);
+  assert.match(src, /const surface = "q-panel/);
+  assert.match(css, /\.q-panel\s*\{\s*background:\s*#101010;/);
+});
+
