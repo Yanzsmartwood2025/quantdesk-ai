@@ -143,6 +143,7 @@ export function Dashboard() {
   // Effect 1: Instrument Data Fetch (Traces & Status)
   useEffect(() => {
     if (loading || !instrument) return;
+    let cancelled = false;
 
     const fetchInstrumentData = async () => {
       setIsTracesLoading(true);
@@ -166,6 +167,7 @@ export function Dashboard() {
           .eq('instrument', instrument)
           .single();
 
+        if (cancelled) return;
         if (activeData) {
           setIsInstrumentActive(activeData.is_active);
         } else {
@@ -180,19 +182,18 @@ export function Dashboard() {
       } catch (err) {
         console.error("Error during instrument data fetch:", err);
       } finally {
-        setIsTracesLoading(false);
+        if (!cancelled) setIsTracesLoading(false);
       }
     };
 
     fetchInstrumentData();
+    return () => { cancelled = true; };
   }, [instrument, loading]);
 
   // Effect 2: Timeframe Data Fetch (Candles only)
   useEffect(() => {
-    if (loading) return;
-
-    // Safety check - wait for selectedTimeframe to be set by Effect 1 if missing
-    if (!selectedTimeframe) return;
+    if (loading || !instrument || !selectedTimeframe) return;
+    let cancelled = false;
 
     const isInstrumentChange = prevInstrument.current !== instrument;
 
@@ -222,6 +223,7 @@ export function Dashboard() {
 
         const { data: candlesData, error: candlesError } = await candlesQuery;
 
+        if (cancelled) return;
         if (candlesData) {
           setCandles(candlesData);
         }
@@ -229,7 +231,7 @@ export function Dashboard() {
       } catch (err) {
         console.error("Error during candle data fetch:", err);
       } finally {
-        if (isInstrumentChange) {
+        if (!cancelled && isInstrumentChange) {
            setIsInitialCandlesLoading(false);
            prevInstrument.current = instrument;
         }
@@ -237,10 +239,13 @@ export function Dashboard() {
     };
 
     fetchCandles();
+    return () => { cancelled = true; };
   }, [instrument, selectedTimeframe, loading]);
 
-  // Supabase Realtime Subscriptions
+  // Supabase Realtime Subscriptions: at most one selected instrument.
   useEffect(() => {
+    if (!instrument || !selectedTimeframe) return;
+    let active = true;
     // Unfortunately, Supabase realtime filters only support a single equality condition out-of-the-box in the standard JS client for `filter`.
     // To strictly filter by instrument AND timeframe in real-time we must handle it client-side.
     // We subscribe to the instrument and filter the timeframe inside the callback.
@@ -266,7 +271,7 @@ export function Dashboard() {
             const newCandle = payload.payload.new as MarketCandle;
 
             // Client-side filtering by instrument and timeframe
-            if (newCandle.instrument !== instrument) return;
+            if (!active || newCandle.instrument !== instrument) return;
             if (!targetTimeframeInternal || newCandle.timeframe === targetTimeframeInternal) {
                setLastUpdatedCandle(newCandle);
             }
@@ -283,6 +288,7 @@ export function Dashboard() {
           (payload) => {
             console.log("[REALTIME] Event received:", payload);
             const newTrace = payload.new as AgentTrace;
+            if (!active || newTrace.instrument !== instrument) return;
             setTraces((current) => [newTrace, ...current]);
 
             // Trigger animations based on role
@@ -307,15 +313,16 @@ export function Dashboard() {
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
-            setIsInstrumentActive(payload.new.is_active);
+            if (active && payload.new.instrument === instrument) setIsInstrumentActive(payload.new.is_active);
           }
         )
         .subscribe((status) => {
           console.log(`[REALTIME] Subscription status for room_${instrument}:`, status);
-          setDiagStatus(status);
+          if (active) setDiagStatus(status);
         });
 
       return () => {
+        active = false;
         supabase.removeChannel(channel);
       };
     } catch (err) {
@@ -543,7 +550,7 @@ export function Dashboard() {
               </div>
             )}
             <div className="flex-1 min-h-[400px]">
-              <ChartWidget candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} pipSize={instrumentPips[instrument]} />
+              <ChartWidget key={instrument} candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} pipSize={instrumentPips[instrument]} />
             </div>
           </div>
         </div>
