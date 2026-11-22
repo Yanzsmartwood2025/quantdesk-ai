@@ -395,7 +395,10 @@ export function Dashboard() {
                     : 'border-white/15 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {cat}
+                <span>{cat === 'Commodities' ? 'Materias primas' : cat}</span>
+                <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-zinc-300">
+                  {(instrumentsByMarket[cat] || []).reduce((sum, group) => sum + group.items.length, 0)}
+                </span>
               </button>
             ))}
           </nav>
