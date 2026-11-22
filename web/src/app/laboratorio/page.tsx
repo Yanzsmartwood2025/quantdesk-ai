@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, ArrowLeft, Check, Database, Search, ShieldCheck, SlidersHorizontal, RotateCcw, PanelTop, LockKeyhole } from "lucide-react";
+import { Activity, ArrowLeft, Check, Database, Search, ShieldCheck, SlidersHorizontal, RotateCcw, PanelTop, Monitor } from "lucide-react";
 import "./lab-glass.css";
 
 /**
@@ -82,7 +82,7 @@ export default function EducationalWorkspace() {
   const difference = last - first;
   const labelClass = "text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400";
   const surface = "q-panel rounded-2xl border border-white/10 bg-[#101010]";
-  const choose = (item: Example) => { setSelectedId(item.id); setShowList(false); };
+  const choose = (item: Example) => { setSelectedId(item.id); if (collection !== "Todas" && collection !== item.collection) setCollection(item.collection); setShowList(false); };
   const resetWorkspace = () => { setCollection("Todas"); setSelectedId(examples[0].id); setRange("1 D"); setSearch(""); setShowList(false); };
 
   return (
@@ -98,22 +98,22 @@ export default function EducationalWorkspace() {
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <Link href="/" aria-label="Volver al inicio de Quantum" title="Volver al inicio"
-                className="q-glass-button inline-flex h-9 w-9 items-center justify-center rounded-xl">
+                className="q-glass-button inline-flex h-11 w-11 items-center justify-center rounded-xl">
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
               </Link>
               <button type="button" onClick={resetWorkspace} aria-label="Restablecer la vista" title="Restablecer selección y período"
-                className="q-glass-button inline-flex h-9 w-9 items-center justify-center rounded-xl">
+                className="q-glass-button inline-flex h-11 w-11 items-center justify-center rounded-xl">
                 <RotateCcw aria-hidden="true" className="h-4 w-4" />
               </button>
             </div>
-            <div className="q-address flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-2 sm:px-4">
-              <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
+            <div className="q-address flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-2 sm:px-4">
+              <Monitor aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
               <span className="truncate text-[11px] font-semibold tracking-[0.16em] text-zinc-200 sm:text-xs">QUANTUM / LABORATORIO</span>
-              <span className="hidden text-[10px] text-zinc-500 lg:inline">VISTA LOCAL</span>
+              <span className="hidden text-[10px] text-zinc-500 lg:inline">DATOS FICTICIOS</span>
             </div>
             <button type="button" onClick={() => setShowList(v => !v)}
               aria-controls="lab-asset-chooser" aria-expanded={showList}
-              className="q-glass-button inline-flex h-9 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold">
+              className="q-glass-button inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold">
               <PanelTop aria-hidden="true" className="h-4 w-4" />
               <span className="hidden sm:inline">Explorar</span>
               <span className="sr-only sm:hidden">Explorar series</span>
