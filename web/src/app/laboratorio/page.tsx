@@ -89,7 +89,7 @@ export default function EducationalWorkspace() {
     <main className="q-lab min-h-screen bg-[#050505] text-zinc-100">
       <div className="mx-auto max-w-[1780px] px-3 pb-10 pt-4 sm:px-6 lg:px-8">
         {/* Browser-inspired application navigation; real browser chrome is untouched. */}
-        <nav aria-label="Navegación de Quantum Lab" className="q-glass q-browserbar sticky top-2 z-30 mb-5 rounded-2xl p-2 sm:p-3">
+        <nav aria-label="Navegación de Beat Lab" className="q-glass q-browserbar sticky top-2 z-30 mb-5 rounded-2xl p-2 sm:p-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="hidden items-center gap-1.5 px-2 sm:flex" aria-hidden="true">
               <span className="h-2.5 w-2.5 rounded-full border border-white/35 bg-white/20" />
@@ -97,7 +97,7 @@ export default function EducationalWorkspace() {
               <span className="h-2.5 w-2.5 rounded-full border border-white/15 bg-white/5" />
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <Link href="/" aria-label="Volver al inicio de Quantum" title="Volver al inicio"
+              <Link href="/" aria-label="Volver al inicio de Beat" title="Volver al inicio"
                 className="q-glass-button inline-flex h-11 w-11 items-center justify-center rounded-xl">
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />
               </Link>
@@ -108,7 +108,7 @@ export default function EducationalWorkspace() {
             </div>
             <div className="q-address flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-2 sm:px-4">
               <Monitor aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
-              <span className="truncate text-[11px] font-semibold tracking-[0.16em] text-zinc-200 sm:text-xs">QUANTUM / LABORATORIO</span>
+              <span className="truncate text-[11px] font-semibold tracking-[0.16em] text-zinc-200 sm:text-xs">BEAT / LABORATORIO</span>
               <span className="hidden text-[10px] text-zinc-500 lg:inline">DATOS FICTICIOS</span>
             </div>
             <button type="button" onClick={() => setShowList(v => !v)}
@@ -126,7 +126,7 @@ export default function EducationalWorkspace() {
               <Activity aria-hidden="true" className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Quantum <span className="text-zinc-100">Lab</span></h1>
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Beat <span className="text-zinc-100">Lab</span></h1>
               <p className="text-xs text-zinc-400">Panel visual experimental · sin conexión a plataformas</p>
             </div>
           </div>
@@ -282,7 +282,7 @@ export default function EducationalWorkspace() {
           </div>
         </section>
         <footer className="mt-6 text-center text-xs leading-5 text-zinc-500">
-          Quantum Lab · prototipo educativo separado del sistema existente · sin APIs, sin órdenes, sin predicciones
+          Beat Lab · prototipo educativo separado del sistema existente · sin APIs, sin órdenes, sin predicciones
         </footer>
       </div>
     </main>
