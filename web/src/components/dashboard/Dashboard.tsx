@@ -12,8 +12,7 @@ import { InstrumentSelector, InstrumentGroup } from './InstrumentSelector';
 
 const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
 
-// Hardcoded for presentation when DB is empty, but overridden by DB
-const DEFAULT_FOREX = ['EUR_USD', 'GBP_USD', 'USD_JPY', 'AUD_USD', 'USD_CAD', 'USD_CHF', 'NZD_USD'];
+// Only display instruments actually stored in the read-only catalogue.
 
 const TIMEFRAMES_DISPLAY = ['1m', '5m', '15m', '30m', '1H', '4H', '1D'];
 const TIMEFRAMES_INTERNAL = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
@@ -24,6 +23,7 @@ export function Dashboard() {
 
   // Data for selector
   const [instrumentsByMarket, setInstrumentsByMarket] = useState<Record<string, InstrumentGroup[]>>({});
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const [timeframes, setTimeframes] = useState<string[]>([]); // Display values
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(''); // Display value ('1H')
@@ -59,73 +59,38 @@ export function Dashboard() {
           .select('instrument, category, market, pip_size');
 
         if (error) {
-          console.error("Failed to load instruments:", error);
-          // Set fallback mock data
-          setInstrumentsByMarket({
-            'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
-            'Sintéticos': [
-              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-            ]
-          });
+          console.error("Failed to load catalogue:", error);
+          setCatalogError("No fue posible consultar el catálogo guardado.");
+          setInstrumentsByMarket({});
           return;
         }
 
-        if (data && data.length > 0) {
-          const marketCategoryMap: Record<string, Record<string, string[]>> = {};
-          const pipsRecord: Record<string, number> = {};
+        setCatalogError(null);
+        const marketCategoryMap: Record<string, Record<string, string[]>> = {};
+        const pipsRecord: Record<string, number> = {};
 
-          data.forEach(item => {
-            if (item.pip_size !== null) {
-              pipsRecord[item.instrument] = Number(item.pip_size);
-            }
+        (data || []).forEach(item => {
+          if (!item.instrument) return;
+          if (item.pip_size !== null) pipsRecord[item.instrument] = Number(item.pip_size);
+          const market = item.market || "Sin clasificar";
+          const group = item.category || "General";
+          if (!marketCategoryMap[market]) marketCategoryMap[market] = {};
+          if (!marketCategoryMap[market][group]) marketCategoryMap[market][group] = [];
+          marketCategoryMap[market][group].push(item.instrument);
+        });
 
-            // Fallback for old records where market might be null
-            const mkt = item.market || (item.category === 'Forex' ? 'Forex' : 'Sintéticos');
-            const cat = item.category || 'General';
-
-            if (!marketCategoryMap[mkt]) {
-              marketCategoryMap[mkt] = {};
-            }
-            if (!marketCategoryMap[mkt][cat]) {
-              marketCategoryMap[mkt][cat] = [];
-            }
-            marketCategoryMap[mkt][cat].push(item.instrument);
-          });
-
-          setInstrumentPips(pipsRecord);
-
-          const byMarket: Record<string, InstrumentGroup[]> = {};
-          Object.keys(marketCategoryMap).forEach(mkt => {
-            const categoriesObj = marketCategoryMap[mkt];
-            const groups: InstrumentGroup[] = Object.keys(categoriesObj).map(cat => ({
-              label: cat,
-              items: categoriesObj[cat].sort()
-            }));
-            groups.sort((a, b) => a.label.localeCompare(b.label));
-            byMarket[mkt] = groups;
-          });
-
-          setInstrumentsByMarket(byMarket);
-        } else {
-          // Mock for presentation if empty
-          setInstrumentsByMarket({
-            'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
-            'Sintéticos': [
-              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-            ]
-          });
-        }
+        const byMarket: Record<string, InstrumentGroup[]> = {};
+        Object.entries(marketCategoryMap).forEach(([market, groups]) => {
+          byMarket[market] = Object.entries(groups)
+            .map(([label, items]) => ({ label, items: [...new Set(items)].sort() }))
+            .sort((a,b) => a.label.localeCompare(b.label));
+        });
+        setInstrumentPips(pipsRecord);
+        setInstrumentsByMarket(byMarket);
       } catch (err) {
-         console.error("Supabase fetch error", err);
-         setInstrumentsByMarket({
-           'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
-           'Sintéticos': [
-             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-           ]
-         });
+        console.error("Catalogue query failed:", err);
+        setCatalogError("No fue posible consultar el catálogo guardado.");
+        setInstrumentsByMarket({});
       } finally {
         setLoading(false);
       }
@@ -134,20 +99,46 @@ export function Dashboard() {
     fetchInstruments();
   }, []);
 
-  // Reset instrument when switching categories if selected instrument is not in selected market
+  // Only one instrument is selected. Selection never writes to the database,
+  // opens broker connections, or starts background analysis.
+  const clearSelectedView = () => {
+    setCandles([]);
+    setTraces([]);
+    setLastUpdatedCandle(null);
+    setIsInstrumentActive(false);
+    setSelectedTimeframe('');
+    setTimeframes([]);
+    setIsTracesLoading(false);
+    setIsInitialCandlesLoading(false);
+    setAnalystActive(false);
+    setRiskActive(false);
+    setPortfolioActive(false);
+    prevInstrument.current = '';
+  };
+
+  const selectInstrument = (next: string) => {
+    if (instrument === next) return;
+    clearSelectedView();
+    setInstrument(next);
+  };
+
+  const selectCategory = (nextCategory: string) => {
+    if (nextCategory === category) return;
+    clearSelectedView();
+    setInstrument('');
+    setCategory(nextCategory);
+  };
+
+  // If the catalogue changes underneath the page, clear any unavailable selection.
   useEffect(() => {
-    const syncInstrument = () => {
-      if (!instrument) return;
+    if (!instrument || loading) return;
+    const items = (instrumentsByMarket[category] || []).flatMap(group => group.items);
+    if (!items.includes(instrument)) setInstrument('');
+  }, [category, instrumentsByMarket, instrument, loading]);
 
-      const currentMarketGroups = instrumentsByMarket[category] || [];
-      const allMarketInstruments = currentMarketGroups.flatMap(g => g.items);
-
-      if (allMarketInstruments.length > 0 && !allMarketInstruments.includes(instrument)) {
-        setInstrument('');
-      }
-    };
-    syncInstrument();
-  }, [category, instrumentsByMarket, instrument]);
+  const currentCategoryCount = (instrumentsByMarket[category] || []).reduce(
+    (sum, group) => sum + group.items.length, 0
+  );
 
   // Effect 1: Instrument Data Fetch (Traces & Status)
   useEffect(() => {
@@ -389,7 +380,7 @@ export function Dashboard() {
               <button
                 key={cat}
                 type="button"
-                onClick={() => setCategory(cat)}
+                onClick={() => selectCategory(cat)}
                 aria-pressed={category === cat}
                 className={`beat-glass-button shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
                   category === cat
@@ -410,10 +401,17 @@ export function Dashboard() {
                   instruments={category === 'Forex' ? (instrumentsByMarket['Forex'] || []).flatMap(g => g.items) : []}
                   groups={category !== 'Forex' ? (instrumentsByMarket[category] || []) : []}
                   selectedInstrument={instrument}
-                  onSelect={setInstrument}
+                  onSelect={selectInstrument}
                   getLabel={getInstrumentLabel}
                 />
               </div>
+              {instrument && (
+                <button type="button" onClick={() => selectInstrument('')}
+                  className="beat-glass-button min-h-11 rounded-full px-4 py-2 text-xs font-semibold"
+                  aria-label="Cerrar la vista seleccionada">
+                  Cerrar vista
+                </button>
+              )}
             </div>
             <span
               className="inline-flex shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2.5 text-xs font-semibold text-zinc-200"
@@ -436,7 +434,12 @@ export function Dashboard() {
             Bienvenido a Beat
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-md text-lg">
-            Selecciona una categoría y un instrumento para explorar los registros disponibles. Cambiar de vista no activa procesos.
+            {catalogError
+              ? catalogError
+              : currentCategoryCount === 0
+                ? `Todavía no hay instrumentos registrados en ${category}. No se mostrarán ejemplos como datos reales.`
+                : `Hay ${currentCategoryCount} instrumentos guardados en ${category}. Elige uno para abrir su gráfico; cambiar de instrumento cierra el anterior.`}
+
           </p>
         </div>
       ) : (loading || dataLoading) ? (
