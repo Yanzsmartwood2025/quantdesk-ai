@@ -47,13 +47,13 @@ test("the interface identifies itself as an isolated demonstration", () => {
 const css = fs.readFileSync(path.join(__dirname, "../src/app/laboratorio/lab-glass.css"), "utf8");
 
 test("top browser-like controls are interactive and accessible", () => {
-  assert.match(src, /aria-label="Navegación de Quantum Lab"/);
-  assert.match(src, /href="\/" aria-label="Volver al inicio de Quantum"/);
+  assert.match(src, /aria-label="Navegación de Beat Lab"/);
+  assert.match(src, /href="\/" aria-label="Volver al inicio de Beat"/);
   assert.match(src, /onClick=\{resetWorkspace\}/);
   assert.match(src, /onClick=\{\(\) => setShowList\(v => !v\)\}/);
   assert.match(src, /aria-expanded=\{showList\}/);
   assert.match(src, /q-browserbar/);
-  assert.match(src, /QUANTUM \/ LABORATORIO/);
+  assert.match(src, /BEAT \/ LABORATORIO/);
 });
 
 test("monochrome space-glass styles are scoped and accessible", () => {
