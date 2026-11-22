@@ -56,7 +56,7 @@ test("mobile header provides readable category and asset selectors", () => {
 test("dashboard no longer exposes an unauthenticated activation action", () => {
   assert.doesNotMatch(dashboard, /toggleInstrumentActive|\.update\(\{ is_active:/);
   assert.match(dashboard, /Pausado · Solo lectura/);
-  assert.match(dashboard, /Cambiar de vista no activa procesos/);
+  assert.match(dashboard, /Cambiar de instrumento cierra el anterior/);
 });
 
 test("diagnostics are development-only and do not appear in the main screenshot", () => {
