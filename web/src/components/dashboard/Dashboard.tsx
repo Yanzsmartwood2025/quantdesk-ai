@@ -332,28 +332,6 @@ export function Dashboard() {
     }
   }, [instrument, selectedTimeframe]);
 
-  const toggleInstrumentActive = async () => {
-    const newState = !isInstrumentActive;
-    // Optimistic update
-    setIsInstrumentActive(newState);
-
-    try {
-      const { error } = await supabase
-        .from('active_instruments')
-        .update({ is_active: newState, activated_at: newState ? new Date().toISOString() : null })
-        .eq('instrument', instrument);
-
-      if (error) {
-        console.error("Failed to update active status:", error);
-        // Revert on error
-        setIsInstrumentActive(!newState);
-      }
-    } catch (err) {
-      console.error("Supabase update error:", err);
-      setIsInstrumentActive(!newState);
-    }
-  };
-
   // Derived state for empty state
   // We only show empty state if we are done loading AND we actually have 0 candles/traces
   const isDataEmpty = !dataLoading && !loading && candles.length === 0 && traces.length === 0;
@@ -376,10 +354,10 @@ export function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 p-4 md:p-6 font-sans transition-colors duration-300 relative">
+    <div className="beat-app min-h-screen bg-[#060606] text-white p-3 sm:p-5 lg:p-6 font-sans relative">
 
-      {/* Diagnóstico Flotante (Temporal) */}
-      <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-green-400 p-4 rounded-lg shadow-lg border border-gray-700 max-w-sm text-xs font-mono break-words pointer-events-none">
+      {/* Solo desarrollo: datos de depuración ocultos en producción. */}
+      {process.env.NODE_ENV === "development" && <div className="fixed bottom-4 right-4 z-50 bg-black/90 text-zinc-200 p-4 rounded-lg shadow-lg border border-gray-700 max-w-sm text-xs font-mono break-words pointer-events-none">
         <h3 className="font-bold text-white mb-2 uppercase border-b border-gray-700 pb-1">Realtime Diagnóstico</h3>
         <p><strong>URL:</strong> {supabaseUrl}</p>
         <p><strong>Status:</strong> {diagStatus}</p>
@@ -388,87 +366,87 @@ export function Dashboard() {
           <strong>lastUpdatedCandle:</strong>
           <pre className="text-gray-300 whitespace-pre-wrap">{lastUpdatedCandle ? JSON.stringify(lastUpdatedCandle, null, 2) : 'null'}</pre>
         </div>
-      </div>
+      </div>}
 
-      <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div className="flex justify-between items-center w-full md:w-auto">
-          <div>
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-              QuantDesk AI
-            </h1>
-            <p className="text-sm text-gray-500">Mesa de inversión autónoma</p>
+      <header className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="beat-logo flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-black" aria-hidden="true">B</span>
+            <div className="min-w-0">
+              <h1 className="text-3xl font-black tracking-tight text-white">Beat</h1>
+              <p className="text-xs text-zinc-400">Estudio visual de datos · Demostración</p>
+            </div>
           </div>
-          <div className="md:hidden">
+          <div className="flex items-center gap-3">
+            <span className="rounded-full border border-white/20 bg-white/5 px-3 py-2 text-xs text-zinc-300">MODO CONSULTA</span>
             <ThemeToggle />
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto overflow-hidden">
-          <div className="flex flex-nowrap overflow-x-auto w-full items-center gap-2 bg-gray-100 dark:bg-[#131722] p-1 rounded-lg border border-gray-200 dark:border-gray-800 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="beat-glass space-y-3 rounded-2xl p-3 sm:p-4">
+          <nav aria-label="Categorías de datos" className="flex w-full items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
             {ASSET_CATEGORIES.map(cat => (
               <button
                 key={cat}
+                type="button"
                 onClick={() => setCategory(cat)}
-                className={`whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                aria-pressed={category === cat}
+                className={`beat-glass-button shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
                   category === cat
-                    ? 'bg-white dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-gray-200 shadow-sm dark:border-blue-500/30'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-800 border border-transparent'
+                    ? 'border-white/70 bg-white/20 text-white'
+                    : 'border-white/15 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {cat}
               </button>
             ))}
-          </div>
+          </nav>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <label className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">Instrumento:</label>
-            <InstrumentSelector
-              instruments={category === 'Forex' ? (instrumentsByMarket['Forex'] || []).flatMap(g => g.items) : []}
-              groups={category !== 'Forex' ? (instrumentsByMarket[category] || []) : []}
-              selectedInstrument={instrument}
-              onSelect={setInstrument}
-              getLabel={getInstrumentLabel}
-            />
-            <button
-              onClick={toggleInstrumentActive}
-              className={`ml-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border ${
-                isInstrumentActive
-                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50 dark:hover:bg-blue-500/30'
-                  : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 dark:bg-[#1a1f2e] dark:text-gray-400 dark:border-gray-700 dark:hover:bg-[#2a2f3e]'
-              }`}
-              title={isInstrumentActive ? 'Pausar análisis de IA' : 'Activar análisis de IA (consumirá tokens)'}
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <label className="shrink-0 text-xs font-medium text-zinc-300">Instrumento a visualizar</label>
+              <div className="min-w-0 flex-1">
+                <InstrumentSelector
+                  instruments={category === 'Forex' ? (instrumentsByMarket['Forex'] || []).flatMap(g => g.items) : []}
+                  groups={category !== 'Forex' ? (instrumentsByMarket[category] || []) : []}
+                  selectedInstrument={instrument}
+                  onSelect={setInstrument}
+                  getLabel={getInstrumentLabel}
+                />
+              </div>
+            </div>
+            <span
+              className="inline-flex shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2.5 text-xs font-semibold text-zinc-200"
+              title="Solo lectura: la activación del análisis requiere autorización y está deshabilitada en esta vista"
             >
-              {isInstrumentActive ? 'Activo' : 'Pausado'}
-            </button>
-          </div>
-          <div className="hidden md:block">
-            <ThemeToggle />
+              {isInstrumentActive ? 'Histórico activo · Solo lectura' : 'Pausado · Solo lectura'}
+            </span>
           </div>
         </div>
       </header>
 
       {!instrument ? (
         <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4 animate-in fade-in duration-500">
-          <div className="w-24 h-24 mb-6 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-900/20">
+          <div className="beat-logo flex h-20 w-20 items-center justify-center rounded-3xl mb-6">
             <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-            Bienvenido a QuantDesk AI
+          <h2 className="text-3xl font-black mb-3 text-white">
+            Bienvenido a Beat
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-md text-lg">
-            Selecciona un instrumento del menú superior para comenzar a monitorear los análisis y señales del mercado.
+            Selecciona una categoría y un instrumento para explorar los registros disponibles. Cambiar de vista no activa procesos.
           </p>
         </div>
       ) : (loading || dataLoading) ? (
          <div className="flex items-center justify-center h-[60vh]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-400"></div>
          </div>
       ) : isDataEmpty ? (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 h-auto lg:h-[calc(100vh-160px)]">
           {/* We'll render empty states or empty containers here so it matches the UI structure */}
-          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
+          <div className="order-2 lg:order-1 lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
             <div className="flex flex-col gap-3">
               <AgentStatusCard
                 role="analyst"
@@ -499,14 +477,14 @@ export function Dashboard() {
               <ReasoningFeed traces={traces} isPaused={!isInstrumentActive} />
             </div>
           </div>
-          <div className="lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
-            <EmptyState message={`Esperando las primeras velas y señales para ${getInstrumentLabel(instrument)}...`} />
+          <div className="order-1 lg:order-2 lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
+            <EmptyState message={`No hay registros visualizables para ${getInstrumentLabel(instrument)}...`} />
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
           {/* Left Column: Agents & Feed */}
-          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
+          <div className="order-2 lg:order-1 lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
             <div className="flex flex-col gap-3">
               <AgentStatusCard
                 role="analyst"
@@ -540,7 +518,7 @@ export function Dashboard() {
           </div>
 
           {/* Right Column: Chart */}
-          <div className="lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
+          <div className="order-1 lg:order-2 lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
             {timeframes.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Temporalidad:</span>
@@ -551,8 +529,8 @@ export function Dashboard() {
                       onClick={() => setSelectedTimeframe(tf)}
                       className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
                         selectedTimeframe === tf
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          ? 'bg-white text-black shadow-sm'
+                          : 'bg-white/5 text-zinc-300 hover:bg-white/10'
                       }`}
                     >
                       {tf}
