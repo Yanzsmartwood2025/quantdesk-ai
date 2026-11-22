@@ -1,9 +1,9 @@
-# Quantum Lab — prototipo aislado de interfaz
+# Beat Lab — prototipo aislado de interfaz
 
 Este borrador crea la ruta **/laboratorio** dentro del frontend Next.js.
 
 ## Diseño
-- Encabezado: identidad de Quantum Lab y estado de demostración.
+- Encabezado: identidad de Beat Lab y estado de demostración.
 - Barra superior: colecciones y acceso rápido para cambiar entre ocho series ficticias.
 - Selector desplegable: búsqueda de la lista completa de muestras por nombre o código, también en móvil.
 - Pantalla central: gráfico grande, cambio de intervalos, valor y variación de la muestra ficticia.
