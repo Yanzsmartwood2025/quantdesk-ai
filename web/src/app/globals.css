@@ -8,12 +8,12 @@
 @layer base {
   :root {
     --background: #ffffff;
-    --foreground: #111827;
+    --foreground: #111111;
   }
 
   .dark {
     --background: #000000;
-    --foreground: #f3f4f6;
+    --foreground: #f3f3f3;
   }
 
   body {
