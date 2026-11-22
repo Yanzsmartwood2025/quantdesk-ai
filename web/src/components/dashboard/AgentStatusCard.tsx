@@ -21,21 +21,21 @@ const roleIcons = {
 };
 
 const roleColors = {
-  analyst: 'text-blue-400',
-  risk_manager: 'text-orange-400',
-  portfolio_manager: 'text-purple-400',
+  analyst: 'text-zinc-200',
+  risk_manager: 'text-zinc-200',
+  portfolio_manager: 'text-zinc-200',
 };
 
 const roleBgs = {
-  analyst: 'bg-blue-500/20 border-blue-500/30',
-  risk_manager: 'bg-orange-500/20 border-orange-500/30',
-  portfolio_manager: 'bg-purple-500/20 border-purple-500/30',
+  analyst: 'bg-white/20 border-white/30',
+  risk_manager: 'bg-white/20 border-white/30',
+  portfolio_manager: 'bg-white/20 border-white/30',
 };
 
 const roleGlows = {
-  analyst: 'shadow-[0_0_15px_rgba(59,130,246,0.5)]',
-  risk_manager: 'shadow-[0_0_15px_rgba(249,115,22,0.5)]',
-  portfolio_manager: 'shadow-[0_0_15px_rgba(168,85,247,0.5)]',
+  analyst: 'shadow-[0_0_15px_rgba(255,255,255,0.18)]',
+  risk_manager: 'shadow-[0_0_15px_rgba(255,255,255,0.18)]',
+  portfolio_manager: 'shadow-[0_0_15px_rgba(255,255,255,0.18)]',
 };
 
 export function AgentStatusCard({ role, title, description, isActive, lastActiveAt, isPaused }: AgentStatusCardProps) {
@@ -49,8 +49,8 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
       className={cn(
         "relative overflow-hidden rounded-xl border p-5 transition-all duration-500",
         isActive
-          ? `bg-gray-50 dark:bg-[#1a1f2e] border-gray-300 dark:border-gray-600 ${glowClass}`
-          : "bg-white dark:bg-[#131722] border-gray-200 dark:border-gray-800"
+          ? `bg-gray-50 dark:bg-[#151515] border-gray-300 dark:border-gray-600 ${glowClass}`
+          : "bg-white dark:bg-[#101010] border-gray-200 dark:border-gray-800"
       )}
     >
       {/* Background Pulse when active */}
@@ -66,7 +66,7 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
             <Icon className={cn("w-5 h-5", isActive ? colorClass : "text-gray-500 dark:text-gray-400")} />
           </div>
           <div>
-            <h4 className="font-medium text-gray-800 dark:text-gray-200">{title}</h4>
+            <h4 className="font-medium text-gray-800 dark:text-zinc-100">{title}</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
           </div>
         </div>
@@ -75,7 +75,7 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
           <div className="flex items-center gap-2">
             <span className={cn(
               "text-xs font-medium uppercase tracking-wider",
-              isActive ? colorClass : (isPaused ? "text-gray-400 dark:text-gray-500" : "text-gray-400 dark:text-gray-500")
+              isActive ? colorClass : (isPaused ? "text-gray-400 dark:text-zinc-400" : "text-gray-400 dark:text-zinc-400")
             )}>
               {isActive ? 'Analizando...' : (isPaused ? 'Instrumento en pausa' : 'En Espera')}
             </span>
@@ -88,7 +88,7 @@ export function AgentStatusCard({ role, title, description, isActive, lastActive
           </div>
 
           {lastActiveAt && !isActive && (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">
+            <span className="text-[10px] text-gray-400 dark:text-zinc-400">
               Último: {new Date(lastActiveAt).toLocaleTimeString()}
             </span>
           )}
