@@ -26,14 +26,18 @@ test("branding is Beat throughout the main public interface", () => {
   assert.doesNotMatch(dashboard + footer + metadata, /QuantDesk AI|Create Next App/);
 });
 
-test("screens and chart use neutral monochrome tokens only", () => {
+test("UI monochrome with green/red candlestick exception", () => {
   assert.match(css, /\.beat-glass\s*\{/);
   assert.match(css, /\.beat-glass-button\s*\{/);
   assert.match(css, /backdrop-filter:\s*blur/);
   for (const code of files) {
     assert.doesNotMatch(code, /(?:text|bg|border|ring|from|to)-(?:blue|purple|green|red|orange|yellow|cyan|teal|pink|emerald|indigo)-\d{2,3}/);
   }
+  // Green and red candles are the sole intentional color exception.
+  assert.match(chart, /upColor:\s*'#22c55e'/);
+  assert.match(chart, /downColor:\s*'#ef4444'/);
   for (const color of (chart + css).match(/#[0-9a-fA-F]{6}\b/g) || []) {
+    if (color === '#22c55e' || color === '#ef4444') continue;
     const [r,g,b] = [1,3,5].map(i => parseInt(color.slice(i,i+2),16));
     assert.equal(r,g,"not neutral: "+color);
     assert.equal(g,b,"not neutral: "+color);
