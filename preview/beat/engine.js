@@ -9,7 +9,7 @@ export function createViewerState() {
   let category="Forex", selected=null, range="1D", query="";
   return {
     snapshot:()=>({category,selected,range,query}),
-    category:(value)=>{category=value;selected=null;query="";return this;},
+    category:(value)=>{category=value;selected=null;query="";return category;},
     select:(item)=>{selected=item??null;return selected;},
     clear:()=>{selected=null;return null;},
     range:(value)=>{range=value;return range;},
