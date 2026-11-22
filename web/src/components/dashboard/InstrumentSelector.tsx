@@ -93,7 +93,7 @@ export function InstrumentSelector({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "flex items-center justify-between w-full text-left px-4 py-3 text-base rounded-lg transition-colors",
+                  "flex min-h-11 items-center justify-between w-full text-left px-4 py-3 text-base rounded-lg transition-colors",
                   selectedInstrument === inst
                     ? "bg-white/10 dark:bg-white/20 text-zinc-200 dark:text-zinc-200 font-medium"
                     : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -116,7 +116,7 @@ export function InstrumentSelector({
           setIsOpen(false);
         }}
         className={cn(
-          "flex items-center justify-between w-full text-left px-4 py-3 text-base rounded-lg transition-colors",
+          "flex min-h-11 items-center justify-between w-full text-left px-4 py-3 text-base rounded-lg transition-colors",
           selectedInstrument === inst
             ? "bg-white/10 dark:bg-white/20 text-zinc-200 dark:text-zinc-200 font-medium"
             : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -140,7 +140,7 @@ export function InstrumentSelector({
 
       {/* Desktop Dropdown */}
       <div className={cn(
-        "hidden md:block absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 overflow-hidden transition-all origin-top",
+        "hidden md:block absolute top-full left-0 mt-1 w-64 bg-[#111111] border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50 overflow-hidden transition-all origin-top",
         isOpen ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0 pointer-events-none"
       )}>
         <div className="max-h-80 overflow-y-auto custom-scrollbar">
@@ -156,7 +156,7 @@ export function InstrumentSelector({
 
       {/* Mobile Bottom Sheet Content */}
       <div className={cn(
-        "md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1f2e] border-t border-gray-200 dark:border-gray-800 rounded-t-xl z-50 transition-transform duration-300 max-h-[85vh] overflow-hidden flex flex-col",
+        "md:hidden fixed bottom-0 left-0 right-0 bg-[#111111] border-t border-gray-200 dark:border-gray-800 rounded-t-xl z-50 transition-transform duration-300 max-h-[85vh] overflow-hidden flex flex-col",
         isOpen ? "translate-y-0" : "translate-y-full"
       )}>
         <div className="flex justify-center p-2 border-b border-gray-100 dark:border-gray-800">
