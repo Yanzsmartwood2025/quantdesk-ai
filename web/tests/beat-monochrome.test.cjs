@@ -44,19 +44,22 @@ test("UI monochrome with green/red candlestick exception", () => {
   }
 });
 
-test("mobile header provides readable category and asset selectors", () => {
+test("mobile dashboard has one accessible left drawer with categories and search", () => {
+  assert.match(dashboard, /aria-controls="beat-drawer"/);
+  assert.match(dashboard, /aria-label="Abrir bandeja de activos"/);
+  assert.match(dashboard, /id="beat-drawer"/);
+  assert.match(dashboard, /role="dialog" aria-modal="true"/);
   assert.match(dashboard, /aria-label="Categorías de datos"/);
-  assert.match(dashboard, /Instrumento a visualizar/);
-  assert.match(dashboard, /overflow-x-auto/);
-  assert.match(selector, /min-h-11/);
+  assert.match(dashboard, /id="beat-drawer-search"/);
+  assert.match(dashboard, /filteredDrawerInstruments/);
   assert.match(dashboard, /order-1 lg:order-2/);
   assert.match(dashboard, /order-2 lg:order-1/);
 });
 
 test("dashboard no longer exposes an unauthenticated activation action", () => {
   assert.doesNotMatch(dashboard, /toggleInstrumentActive|\.update\(\{ is_active:/);
-  assert.match(dashboard, /Pausado · Solo lectura/);
-  assert.match(dashboard, /cambiar de instrumento cierra el anterior/i);
+  assert.match(dashboard, /SOLO LECTURA/);
+  assert.match(dashboard, /Elegir una opción abre una sola vista/i);
 });
 
 test("diagnostics are development-only and do not appear in the main screenshot", () => {
