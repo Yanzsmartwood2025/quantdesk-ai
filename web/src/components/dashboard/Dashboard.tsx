@@ -30,6 +30,7 @@ export function Dashboard() {
   const [timeframes, setTimeframes] = useState<string[]>([]); // Display values
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(''); // Display value ('1H')
   const [candles, setCandles] = useState<MarketCandle[]>([]);
+  const [candlesQueryKey, setCandlesQueryKey] = useState('');
   const [lastUpdatedCandle, setLastUpdatedCandle] = useState<MarketCandle | null>(null);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
 
@@ -40,7 +41,7 @@ export function Dashboard() {
   const [isTracesLoading, setIsTracesLoading] = useState(false);
   const [isInitialCandlesLoading, setIsInitialCandlesLoading] = useState(false);
   const dataLoading = isTracesLoading || isInitialCandlesLoading;
-  const prevInstrument = useRef(instrument);
+  const drawerButtonRef = useRef<HTMLButtonElement>(null);
 
   // Active states for agents
   const [analystActive, setAnalystActive] = useState(false);
@@ -105,6 +106,7 @@ export function Dashboard() {
   // opens broker connections, or starts background analysis.
   const clearSelectedView = () => {
     setCandles([]);
+    setCandlesQueryKey('');
     setTraces([]);
     setLastUpdatedCandle(null);
     setIsInstrumentActive(false);
@@ -115,7 +117,6 @@ export function Dashboard() {
     setAnalystActive(false);
     setRiskActive(false);
     setPortfolioActive(false);
-    prevInstrument.current = '';
   };
 
   const selectInstrument = (next: string) => {
@@ -144,6 +145,7 @@ export function Dashboard() {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
+      drawerButtonRef.current?.focus();
     };
   }, [drawerOpen]);
 
@@ -208,22 +210,18 @@ export function Dashboard() {
     return () => { cancelled = true; };
   }, [instrument, loading]);
 
-  // Effect 2: Timeframe Data Fetch (Candles only)
+  // Read-only historical candles. A request belongs to exactly one instrument and timeframe.
+  // Clear the previous series immediately and ignore results from stale requests.
   useEffect(() => {
     if (loading || !instrument || !selectedTimeframe) return;
     let cancelled = false;
-
-    const isInstrumentChange = prevInstrument.current !== instrument;
-
-    // Clear lastUpdatedCandle safely outside of a direct effect body render-trigger
-    // We do it before async fetch so it's consistent.
+    const requestKey = instrument + ':' + selectedTimeframe;
 
     const fetchCandles = async () => {
-      if (isInstrumentChange) {
-         setIsInitialCandlesLoading(true);
-         setCandles([]); // Clear old candles to avoid flashing stale data
-      }
-      setLastUpdatedCandle(null); // Clear live updates on TF/Instrument change
+      setIsInitialCandlesLoading(true);
+      setCandles([]);
+      setCandlesQueryKey('');
+      setLastUpdatedCandle(null);
       try {
         const tfIndex = TIMEFRAMES_DISPLAY.indexOf(selectedTimeframe);
         const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
@@ -238,21 +236,23 @@ export function Dashboard() {
         if (targetTimeframeInternal) {
           candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
         }
-
-        const { data: candlesData, error: candlesError } = await candlesQuery;
-
+        const { data, error } = await candlesQuery;
         if (cancelled) return;
-        if (candlesData) {
-          setCandles(candlesData);
+        if (error) {
+          console.error('Failed to load candles:', error);
+          setCandles([]);
+        } else {
+          setCandles(data || []);
         }
-        if (candlesError) console.error("Failed to load candles:", candlesError);
-      } catch (err) {
-        console.error("Error during candle data fetch:", err);
+        setCandlesQueryKey(requestKey);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error during candle data fetch:', error);
+          setCandles([]);
+          setCandlesQueryKey(requestKey);
+        }
       } finally {
-        if (!cancelled && isInstrumentChange) {
-           setIsInitialCandlesLoading(false);
-           prevInstrument.current = instrument;
-        }
+        if (!cancelled) setIsInitialCandlesLoading(false);
       }
     };
 
@@ -391,7 +391,7 @@ export function Dashboard() {
 
       <header className="mb-5 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <button type="button" aria-label="Abrir bandeja de activos"
+          <button ref={drawerButtonRef} type="button" aria-label="Abrir bandeja de activos"
             aria-controls="beat-drawer" aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen(true)}
             className="beat-glass-button flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
@@ -610,7 +610,11 @@ export function Dashboard() {
               </div>
             )}
             <div className="flex-1 min-h-[400px]">
-              <ChartWidget key={instrument} candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} pipSize={instrumentPips[instrument]} />
+              <ChartWidget key={instrument + ':' + selectedTimeframe}
+                candles={candlesQueryKey === instrument + ':' + selectedTimeframe ? candles : []}
+                traces={traces}
+                lastUpdatedCandle={candlesQueryKey === instrument + ':' + selectedTimeframe ? lastUpdatedCandle : null}
+                pipSize={instrumentPips[instrument]} />
             </div>
           </div>
         </div>
