@@ -1,30 +1,41 @@
-# Beat — interfaz compacta (vista previa)
+# Beat — visor de investigación, gráfico y cabina de IA
 
-El nombre visible de la aplicación es **Beat**. Se mantiene separado del proyecto operativo y del despliegue Next.js. Es una interfaz de lectura y exploración de nombres, no una plataforma de negociación.
+Actualizado: 23 de noviembre de 2026.
 
-## Módulos
+## Diseño
+- Gráfico central grande con controles de temporalidad.
+- Bandeja izquierda de seis categorías: Acciones, Forex, Criptomonedas, Materias primas, Índices y Sintéticos.
+- Símbolos reconocibles, búsqueda por código y nombre, selección de una sola vista.
+- Ficha del símbolo y perfil de empresa para algunas acciones compatibles.
+- Cabina de dos locutores y monitor de actividad de agentes, lateral en escritorio y debajo del gráfico en móviles.
+- Navegación inferior móvil: Gráfico, Ficha, Utilidades e IA.
 
-- `index.html`: cabecera Beat, botón lateral con línea animada, bandeja deslizante, pantalla central dominante y selector de períodos.
-- `styles.css`: cristal blanco y negro, controles legibles en celular, bandeja animada desde el borde izquierdo; color verde/rojo solamente en leyenda de dirección de vela.
-- `catalog.js`: 22 **nombres reconocibles de referencia**, distribuidos entre Forex, Criptomonedas, Materias primas, Índices y Sintéticos. No es un inventario verificado de Deriv y no incluye cotizaciones ni promesas de disponibilidad.
-- `engine.js`: estado de **una sola selección**, opciones de períodos y política de recursos. Los espacios futuros de agentes se mantienen aislados y deshabilitados.
-- `app.js`: control de la bandeja, buscador local, categorías, selección única, cierre, períodos de referencia; sin conexión externa.
-- `tests/demo-smoke.test.cjs`: aserciones de comportamiento seguro y estética minimalista.
+## Proveedor de gráficos
+La pantalla integra TradingView Advanced Real-Time Chart Widget (Web Component) desde el proveedor oficial. El componente externo presenta gráficos e indicadores de los símbolos compatibles, con atribución visible. Cambiar de activo actualiza su atributo symbol; cambiar temporalidad actualiza interval. Los datos y su actualización están sujetos a cobertura, retrasos, sesiones de mercado y políticas de TradingView.
 
-## Reglas
+La lista del módulo catalog.js contiene identificadores de referencia, no un inventario completo ni autorizado de ningún bróker. No se afirma equivalencia entre proveedores ni se inventan cotizaciones. Los activos sin fuente conocida muestran un estado vacío.
 
-1. El encabezado muestra solamente el nombre **Beat**.
-2. El menú superior izquierdo abre y cierra la bandeja. La línea interna del icono se desplaza de izquierda a derecha según el estado.
-3. Se puede cerrar con el mismo botón, botón ×, toque fuera o tecla Escape.
-4. La lista cambia de categoría localmente. La búsqueda funciona por nombre y código; cuando existe texto busca en todas las categorías.
-5. Si se elige otro nombre, reemplaza al anterior; no quedan dos vistas abiertas.
-6. Los botones `1m, 5m, 15m, 30m, 1H, 4H, 1D` cambian únicamente la temporalidad visual seleccionada. **No se generan velas falsas ni cotizaciones.**
-7. Los 22 nombres son referencias comunes, **no un catálogo de disponibilidad actual del proveedor**.
-8. En ausencia de cotizaciones se muestra un mensaje claro; no se inventan movimientos en tiempo real.
-9. La interfaz no ejecuta `fetch`, WebSocket, polling, solicitudes a modelos de IA ni órdenes.
-10. Los agentes remotos no se activan: cada rol tiene su espacio lógico independiente, apagado en esta fase.
-11. Los gastos del alojamiento web dependen del proveedor. La aplicación **no** origina solicitudes a mercados, Supabase, voces pagadas ni agentes externos.
+Los emblemas tipográficos de la bandeja no son logotipos oficiales. Para logos reales, un proveedor autorizado o archivos aportados con derechos de uso deben suministrar la imagen; algunos widgets de TradingView pueden presentar logos propios dentro de su interfaz.
 
-Para pruebas de código: `node --test preview/beat/tests/demo-smoke.test.cjs`.
+## Seguimiento de herramientas e IA
+La cabina empieza SIN eventos, voz ni agentes conectados, y no inventa acciones. app.js expone un puente de solo lectura para futuras integraciones autorizadas:
 
-**Pendiente:** comprobar renderizado visual desde un navegador. Esta maqueta no resuelve ni verifica la API de Deriv.
+- window.BeatAudit.push({agent, tool, status, summary, at}) presenta un evento sin HTML; el estado puede ser queued, running, completed o error.
+- window.BeatAudit.speaker("A", "speaking") o speaker("B", "idle") actualizan el indicador de voz de forma visual.
+- Un sistema ya autorizado puede emitir en el documento un evento CustomEvent llamado beat:agent-event con datos de resumen no sensibles.
+- Los textos se recortan y se representan mediante textContent. Solo hay 20 eventos visibles. No se envían prompts, tokens, identidades ni claves a servicios desde la cabina.
+
+La conexión real al backend de agentes, sus permisos, registros auditables y módulos TTS/voz es otra fase. No se deben activar ni simular procesos costosos o de negociación mediante esta vista.
+
+## Pruebas
+Desde la raíz del repositorio:
+
+    node --test preview/beat/tests/demo-smoke.test.cjs
+
+La prueba comprueba estructura, atribución, referencias, eventos y ausencia de funciones de ejecución financiera. No demuestra que el proveedor remoto siempre tenga datos ni reemplaza una revisión visual móvil.
+
+## Límites de la entrega
+- La rama modifica preview/beat, independiente del frontend Next.js en web/.
+- Se requiere validar cada símbolo externo y la carga en navegadores Android.
+- La conexión de datos internos y la actividad efectiva de voces/agentes no están implementadas.
+- No se habilitan órdenes, cuentas de negociación ni recomendaciones automáticas.
