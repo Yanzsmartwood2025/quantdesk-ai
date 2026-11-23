@@ -28,7 +28,7 @@ test("only a single instrument can be selected, and close works", () => {
   assert.match(dashboard, /const selectInstrument = \(next: string\) =>/);
   assert.match(dashboard, /setInstrument\(next\)/);
   assert.match(dashboard, /clearSelectedView\(\)/);
-  assert.match(dashboard, /onSelect=\{selectInstrument\}/);
+  assert.match(dashboard, /onClick=\{\(\) => selectInstrument\(inst\)\}/);
   assert.match(dashboard, /onClick=\{\(\) => selectInstrument\(''\)\}/);
   assert.match(dashboard, /Cerrar vista/);
 });
@@ -36,24 +36,29 @@ test("only a single instrument can be selected, and close works", () => {
 test("changing category clears the previous instrument", () => {
   assert.match(dashboard, /const selectCategory = \(nextCategory: string\) =>/);
   assert.match(dashboard, /setInstrument\(''\)/);
-  assert.match(dashboard, /onClick=\{\(\) => selectCategory\(cat\)\}/);
+  assert.match(dashboard, /selectCategory\(cat\); setDrawerSearch\(''\);/);
 });
 
 test("old instrument data is dropped when switching quickly", () => {
   assert.match(dashboard, /let cancelled = false;/);
   assert.match(dashboard, /if \(cancelled\) return;/);
   assert.match(dashboard, /return \(\) => \{ cancelled = true; \};/);
-  assert.match(dashboard, /key=\{instrument\}/);
+  assert.match(dashboard, /key=\{instrument \+ ':' \+ selectedTimeframe\}/);
+  assert.match(dashboard, /setCandlesQueryKey\(''\)/);
+  assert.match(dashboard, /if \(cancelled\) return;/);
   assert.match(chart, /setData\(\[\]\)/);
   assert.match(dashboard, /if \(!instrument \|\| !selectedTimeframe\) return;/);
 });
 
-test("catalogue search works locally on both screen sizes", () => {
-  assert.match(selector, /const \[search, setSearch\] = useState\(''\)/);
-  assert.match(selector, /getLabel\(inst\)\.toLocaleLowerCase/);
-  assert.match(selector, /beat-search-desktop/);
-  assert.match(selector, /beat-search-mobile/);
-  assert.match(selector, /No hay instrumentos registrados que coincidan/);
+test("left drawer lists only local catalogue and closes after selection", () => {
+  assert.match(dashboard, /const \[drawerSearch, setDrawerSearch\] = useState\(''\)/);
+  assert.match(dashboard, /filteredDrawerInstruments/);
+  assert.match(dashboard, /getInstrumentLabel\(inst\)/);
+  assert.match(dashboard, /id="beat-drawer-search"/);
+  assert.match(dashboard, /setDrawerOpen\(false\)/);
+  assert.match(dashboard, /No hay instrumentos registrados que coincidan/);
+  assert.match(dashboard, /event\.key === 'Escape'/);
+  assert.match(dashboard, /drawerButtonRef\.current\?\.focus\(\)/);
 });
 
 test("no activation writes are reintroduced", () => {
