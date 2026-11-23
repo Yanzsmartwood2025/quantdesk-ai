@@ -8,7 +8,7 @@ import { AgentStatusCard } from './AgentStatusCard';
 import { ReasoningFeed } from './ReasoningFeed';
 import { ChartWidget } from './ChartWidget';
 import { ThemeToggle } from '../ThemeToggle';
-import { InstrumentSelector, InstrumentGroup } from './InstrumentSelector';
+import type { InstrumentGroup } from './InstrumentSelector';
 
 const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
 
@@ -20,6 +20,8 @@ const TIMEFRAMES_INTERNAL = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
 export function Dashboard() {
   const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
   const [instrument, setInstrument] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerSearch, setDrawerSearch] = useState('');
 
   // Data for selector
   const [instrumentsByMarket, setInstrumentsByMarket] = useState<Record<string, InstrumentGroup[]>>({});
@@ -117,6 +119,7 @@ export function Dashboard() {
   };
 
   const selectInstrument = (next: string) => {
+    setDrawerOpen(false);
     if (instrument === next) return;
     clearSelectedView();
     setInstrument(next);
@@ -128,6 +131,21 @@ export function Dashboard() {
     setInstrument('');
     setCategory(nextCategory);
   };
+
+  // The catalogue drawer is visual navigation only; Escape closes it.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrawerOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [drawerOpen]);
 
   // If the catalogue changes underneath the page, clear any unavailable selection.
   useEffect(() => {
@@ -351,6 +369,11 @@ export function Dashboard() {
     return labels[inst] || inst;
   };
 
+  const filteredDrawerInstruments = (instrumentsByMarket[category] || [])
+    .flatMap(group => group.items)
+    .filter(inst => [inst, getInstrumentLabel(inst)].some(value =>
+      value.toLocaleLowerCase('es').includes(drawerSearch.trim().toLocaleLowerCase('es'))));
+
   return (
     <div className="beat-app min-h-screen bg-[#060606] text-white p-3 sm:p-5 lg:p-6 font-sans relative">
 
@@ -366,72 +389,106 @@ export function Dashboard() {
         </div>
       </div>}
 
-      <header className="mb-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="beat-logo flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-black" aria-hidden="true">B</span>
-            <div className="min-w-0">
-              <h1 className="text-3xl font-black tracking-tight text-white">Beat</h1>
-              <p className="text-xs text-zinc-400">Estudio visual de datos · Demostración</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full border border-white/20 bg-white/5 px-3 py-2 text-xs text-zinc-300">MODO CONSULTA</span>
-            <ThemeToggle />
+      <header className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <button type="button" aria-label="Abrir bandeja de activos"
+            aria-controls="beat-drawer" aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+            className="beat-glass-button flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+            title="Explorar activos">
+            <svg viewBox="0 0 30 30" width="28" height="28" fill="none" aria-hidden="true">
+              <rect x="3" y="4" width="24" height="22" rx="5" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M15 5v20" stroke="currentColor" opacity=".3" />
+              <path d="M9 9v12" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"
+                style={{ transition: 'transform 200ms ease', transform: drawerOpen ? 'translateX(9px)' : 'translateX(0)' }} />
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-3xl font-black tracking-tight text-white">Beat</h1>
+            <p className="truncate text-xs text-zinc-400">
+              {instrument ? getInstrumentLabel(instrument) : 'Estudio visual de datos · Solo lectura'}
+            </p>
           </div>
         </div>
-
-        <div className="beat-glass space-y-3 rounded-2xl p-3 sm:p-4">
-          <nav aria-label="Categorías de datos" className="flex w-full items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-            {ASSET_CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => selectCategory(cat)}
-                aria-pressed={category === cat}
-                className={`beat-glass-button shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  category === cat
-                    ? 'border-white/70 bg-white/20 text-white'
-                    : 'border-white/15 text-zinc-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <span>{cat === 'Commodities' ? 'Materias primas' : cat}</span>
-                <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-zinc-300">
-                  {(instrumentsByMarket[cat] || []).reduce((sum, group) => sum + group.items.length, 0)}
-                </span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-              <label className="shrink-0 text-xs font-medium text-zinc-300">Instrumento a visualizar</label>
-              <div className="min-w-0 flex-1">
-                <InstrumentSelector
-                  instruments={category === 'Forex' ? (instrumentsByMarket['Forex'] || []).flatMap(g => g.items) : []}
-                  groups={category !== 'Forex' ? (instrumentsByMarket[category] || []) : []}
-                  selectedInstrument={instrument}
-                  onSelect={selectInstrument}
-                  getLabel={getInstrumentLabel}
-                />
-              </div>
-              {instrument && (
-                <button type="button" onClick={() => selectInstrument('')}
-                  className="beat-glass-button min-h-11 rounded-full px-4 py-2 text-xs font-semibold"
-                  aria-label="Cerrar la vista seleccionada">
-                  Cerrar vista
-                </button>
-              )}
-            </div>
-            <span
-              className="inline-flex shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 px-4 py-2.5 text-xs font-semibold text-zinc-200"
-              title="Solo lectura: la activación del análisis requiere autorización y está deshabilitada en esta vista"
-            >
-              {isInstrumentActive ? 'Histórico activo · Solo lectura' : 'Pausado · Solo lectura'}
-            </span>
-          </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="hidden rounded-full border border-white/20 bg-white/5 px-3 py-2 text-xs text-zinc-300 sm:inline-flex">
+            SOLO LECTURA
+          </span>
+          {instrument && (
+            <button type="button" onClick={() => selectInstrument('')}
+              className="beat-glass-button min-h-11 rounded-full px-3 text-xs"
+              aria-label="Cerrar la vista seleccionada">Cerrar vista</button>
+          )}
+          <ThemeToggle />
         </div>
       </header>
+
+      {drawerOpen && (
+        <>
+          <button type="button" className="fixed inset-0 z-[80] cursor-default bg-black/75"
+            aria-label="Cerrar bandeja de activos" onClick={() => setDrawerOpen(false)} />
+          <aside id="beat-drawer" role="dialog" aria-modal="true"
+            aria-labelledby="beat-drawer-title"
+            className="fixed inset-y-0 left-0 z-[81] w-[min(90vw,370px)] overflow-y-auto border-r border-white/20 bg-[#080808] p-4 shadow-2xl sm:p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-zinc-400">EXPLORAR</p>
+                <h2 id="beat-drawer-title" className="text-2xl font-bold">Activos</h2>
+              </div>
+              <button type="button" onClick={() => setDrawerOpen(false)}
+                aria-label="Cerrar bandeja" className="beat-glass-button h-11 w-11 rounded-xl text-2xl">×</button>
+            </div>
+            <nav aria-label="Categorías de datos" className="mb-5 grid grid-cols-2 gap-2">
+              {ASSET_CATEGORIES.map(cat => (
+                <button key={cat} type="button"
+                  onClick={() => { selectCategory(cat); setDrawerSearch(''); }}
+                  aria-pressed={category === cat}
+                  className={category === cat
+                    ? 'beat-glass-button rounded-xl border border-white/70 bg-white/15 p-3 text-left text-sm'
+                    : 'beat-glass-button rounded-xl p-3 text-left text-sm text-zinc-400'}>
+                  <span className="block">{cat === 'Commodities' ? 'Materias primas' : cat}</span>
+                  <span className="text-xs text-zinc-400">
+                    {(instrumentsByMarket[cat] || []).reduce((sum, group) => sum + group.items.length, 0)}
+                  </span>
+                </button>
+              ))}
+            </nav>
+            <label htmlFor="beat-drawer-search" className="mb-2 block text-sm text-zinc-300">
+              Buscar en {category}
+            </label>
+            <input id="beat-drawer-search" type="search" autoFocus
+              value={drawerSearch} onChange={event => setDrawerSearch(event.target.value)}
+              placeholder="Buscar por nombre o código"
+              className="mb-4 min-h-11 w-full rounded-xl border border-white/25 bg-white/5 px-3 text-white outline-offset-2" />
+            <div className="mb-3 flex justify-between text-xs text-zinc-400">
+              <span>Instrumentos guardados</span>
+              <span>{filteredDrawerInstruments.length}</span>
+            </div>
+            {filteredDrawerInstruments.length === 0 ? (
+              <p role="status" className="rounded-xl border border-white/10 p-4 text-sm text-zinc-400">
+                No hay instrumentos registrados que coincidan. No se muestran nombres inventados.
+              </p>
+            ) : (
+              <div className="space-y-1" role="list" aria-label="Instrumentos disponibles para consultar">
+                {filteredDrawerInstruments.map(inst => (
+                  <div key={inst} role="listitem">
+                    <button type="button" onClick={() => selectInstrument(inst)}
+                      aria-pressed={instrument === inst}
+                      className={instrument === inst
+                        ? 'flex min-h-12 w-full items-center rounded-xl border border-white/60 bg-white/15 px-4 text-left text-sm text-white'
+                        : 'flex min-h-12 w-full items-center rounded-xl border border-transparent px-4 text-left text-sm text-zinc-300 hover:bg-white/10'}>
+                      <span className="min-w-0 truncate">{getInstrumentLabel(inst)}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-5 text-xs leading-5 text-zinc-500">
+              Solo muestra registros disponibles en la base de datos. Elegir una opción abre una sola vista y no inicia operaciones.
+            </p>
+          </aside>
+        </>
+      )}
 
       {!instrument ? (
         <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4 animate-in fade-in duration-500">
