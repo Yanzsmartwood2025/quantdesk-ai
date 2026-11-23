@@ -4,71 +4,60 @@ const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const path=require("node:path");
 const vm=require("node:vm");
-const source=name=>fs.readFileSync(path.join(__dirname,"..",name),"utf8");
-function moduleFrom(name,names){
- const src=source(name).replace(/\bexport (const|function)\b/g,"$1");
- return vm.runInNewContext(src+"\n({"+names.join(",")+"})");
-}
-const catalog=moduleFrom("catalog.js",["groups","labels","catalogNote"]);
-const engine=moduleFrom("engine.js",["createViewerState","periods","resourcePolicy","agentSpaces"]);
-const app=source("app.js"),html=source("index.html"),css=source("styles.css");
+const src=name=>fs.readFileSync(path.join(__dirname,"..",name),"utf8");
+const html=src("index.html"),css=src("styles.css"),app=src("app.js");
+const catalogScript=src("catalog.js").replace(/\bexport const\b/g,"const");
+const catalog=vm.runInNewContext(catalogScript+"\n({groups,labels,catalogNote})");
 
-test("name is Beat and sidebar is the only catalogue navigation",()=>{
- assert.match(html,/<title>Beat<\/title>/);
- assert.match(html,/<h1>Beat<\/h1>/);
- assert.doesNotMatch(html,/Beat Studio/);
+test("Beat has one chart, an accessible drawer and mobile navigation",()=>{
+ assert.match(html,/<title>Beat · Explorador visual<\/title>/);
  assert.match(html,/id="nav-toggle"/);
- assert.match(html,/aria-controls="sidebar"/);
- assert.match(html,/class="sliding-line"/);
- assert.match(css,/\.sidebar-open \.sliding-line/);
- assert.match(app,/showSidebar\(!sidebarOpen\)/);
+ assert.match(html,/id="sidebar"/);
+ assert.match(html,/id="filter"/);
+ assert.match(html,/id="chart-container"/);
+ assert.match(css,/@media \(max-width:950px\)/);
+ assert.match(css,/@media \(max-width:580px\)/);
+ assert.match(css,/\.mobile-nav/);
+ assert.match(app,/showSidebar\(!state.sidebarOpen\)/);
 });
-test("Forex, Bitcoin, Oro and five categories appear with reference names",()=>{
- assert.equal(catalog.groups.length,5);
- assert.ok(catalog.labels.some(item=>item.name==="Bitcoin"&&item.group==="Cripto"));
- assert.ok(catalog.labels.some(item=>item.name==="Oro"&&item.group==="Commodities"));
- assert.ok(catalog.labels.some(item=>item.code==="EUR/USD"&&item.group==="Forex"));
- assert.match(catalog.catalogNote,/no|No/);
+test("real-world labels are references, not invented LAB instruments or broker assertions",()=>{
+ assert.equal(catalog.groups.length,6);
+ assert.ok(catalog.labels.some(x=>x.code==="MSFT"&&x.tvSymbol==="NASDAQ:MSFT"));
+ assert.ok(catalog.labels.some(x=>x.name==="Bitcoin"&&x.tvSymbol==="BITSTAMP:BTCUSD"));
+ assert.ok(catalog.labels.some(x=>x.code==="XAU/USD"&&x.tvSymbol));
+ assert.ok(catalog.labels.some(x=>x.group==="Sintéticos"&&x.tvSymbol===null));
+ assert.doesNotMatch(html+app+catalogScript,/LAB-FX|LAB-CR|Velas simuladas/);
+ assert.match(catalog.catalogNote,/no certifica/i);
 });
-test("one selected item replaces the previous; category selection clears it",()=>{
- const state=engine.createViewerState();
- const euro=catalog.labels.find(item=>item.code==="EUR/USD");
- const btc=catalog.labels.find(item=>item.code==="BTC");
- state.chooseItem(euro);
- assert.equal(state.get().item.code,"EUR/USD");
- state.chooseItem(btc);
- assert.equal(state.get().item.code,"BTC");
- state.chooseCategory("Forex");
- assert.equal(state.get().item,null);
+test("TradingView web component is embedded and provider attribution visible",()=>{
+ assert.match(html,/widgets\.tradingview-widget\.com\/w\/en\/tv-advanced-chart\.js/);
+ assert.match(html,/<tv-advanced-chart/);
+ assert.match(html,/TradingView<\/a>/);
+ assert.match(app,/tvChart.setAttribute\("symbol",item.tvSymbol\)/);
+ assert.match(app,/tvChart.setAttribute\("interval",state.period\)/);
+ assert.match(html,/id="chart-unavailable"/);
 });
-test("periods change only a label; there is no simulated or real-time motion",()=>{
- const state=engine.createViewerState();
- assert.deepEqual(Array.from(engine.periods),["1m","5m","15m","30m","1H","4H","1D"]);
- state.choosePeriod("1H");
- assert.equal(state.get().period,"1H");
- assert.doesNotMatch(app,/setInterval|requestAnimationFrame|generatedCandles|advanceDemoCandles/);
- assert.match(html,/No hay cotizaciones conectadas/);
+test("tools perform local actions without generating fake market prices",()=>{
+ for(const section of ["chart","info","tools","ai"])assert.ok(html.includes('data-section="'+section+'"'));
+ for(const id of ["nav-close","change-asset","expand-chart","panel-toggle"])assert.ok(html.includes('id="'+id+'"'));
+ assert.match(app,/function makeTools\(\)/);
+ assert.match(app,/function setSection\(section\)/);
+ assert.doesNotMatch(app,/\bsetInterval\b|\bgeneratedCandles\b|Math\.random\(\)/);
 });
-test("no network requests, trades or remotely running agents",()=>{
- const scripts=["catalog.js","engine.js","app.js"].map(source).join("\n");
- assert.doesNotMatch(scripts,/\bfetch\s*\(|new WebSocket|XMLHttpRequest|EventSource|\bbuy\s*\(|\bsell\s*\(|market_order/);
- assert.equal(engine.resourcePolicy.remoteConnections,0);
- assert.equal(engine.resourcePolicy.realtimeSubscriptions,0);
- assert.equal(engine.resourcePolicy.apiRequests,0);
- assert.equal(engine.resourcePolicy.remoteAgentsEnabled,false);
- assert.ok(Array.from(engine.agentSpaces).every(agent=>agent.mode==="disabled"));
+test("agent monitor is event-driven, sanitized and initially inactive",()=>{
+ assert.match(html,/id="activity-empty"/);
+ assert.match(html,/Sin actividad recibida/);
+ assert.match(app,/Object\.defineProperty\(window,"BeatAudit"/);
+ assert.match(app,/window.addEventListener\("beat:agent-event"/);
+ assert.match(app,/\.textContent=value/);
+ assert.match(app,/allowed\.includes\(raw.status\)/);
+ assert.match(app,/displayed\[displayed.length-1\]\.remove\(\)/);
+ assert.doesNotMatch(app,/\bfetch\s*\(|new WebSocket|eval\s*\(|innerHTML/);
+ assert.doesNotMatch(html+app,/buy\(|sell\(|market_order|place_order/);
 });
-test("sidebar can close via backdrop, close button and Escape",()=>{
- assert.match(html,/id="scrim"/);
- assert.match(html,/id="nav-close"/);
- assert.match(app,/scrim\.addEventListener\("click",\(\)=>showSidebar\(false\)\)/);
- assert.match(app,/event\.key==="Escape"/);
- assert.match(app,/sidebar\.inert=!sidebarOpen/);
-});
-test("chart remains dominant with grayscale UI and directional color legend",()=>{
- assert.match(css,/height:clamp\(380px,65vh,750px\)/);
- assert.match(css,/\.chart-grid/);
- assert.match(css,/\.green-dot\{color:#22c55e\}/);
- assert.match(css,/\.red-dot\{color:#ef4444\}/);
- assert.doesNotMatch(html,/id="agents"|id="play"|id="speak"/);
+test("no direct broker, private-key or execution integration",()=>{
+ const files=["index.html","app.js","catalog.js","engine.js"].map(src).join("\n");
+ assert.doesNotMatch(files,/NEXT_PUBLIC_SUPABASE|api\.derivws|api\.binary|client_secret|service_role/);
+ assert.match(html,/Solo lectura/);
+ assert.match(html,/Sin órdenes ni recomendaciones/);
 });
