@@ -114,6 +114,7 @@ La interfaz **nunca muestra cifras ficticias como mercado real**. Si faltan dato
 - [ ] BEAT-04: React: selector real, una sola vista, cancelación de respuestas antiguas y estados de error/vacío.
 - [ ] BEAT-05: React: gráfico propio con histórico auténtico y actualización de la serie solo cuando lleguen datos nuevos.
 - [ ] BEAT-06: separar el despliegue del frontend y la fuente privada de datos; inspeccionar Oracle/Coolify antes de afirmar que está activo.
+- [ ] **BEAT-14 (P0): conexión continua ChatGPT → GitHub (bunker-ops) → Oracle → Coolify, supervisión periódica segura del servidor y del worker autorizado, sin instalar otra app ni fingir que ChatGPT permanece ejecutándose.** [Tarea #67](https://github.com/Yanzsmartwood2025/quantdesk-ai/issues/67).
 
 ### P1 — funcionalidad de interfaz
 - [ ] BEAT-07: barra de herramientas gráficas, dibujos y guardado local.
@@ -140,3 +141,15 @@ La interfaz **nunca muestra cifras ficticias como mercado real**. Si faltan dato
 
 Esta hoja de trabajo es para **visualización e investigación de mercado**, no para habilitar cuentas, contratos, órdenes, señales automáticas ni servicios de apuestas. La conectividad de cualquier proveedor externo se evalúa separadamente con cumplimiento, edad y permisos apropiados. No se conectará ni activará un servicio de negociación desde estas tareas.
 
+
+## 6. Prioridad inmediata: puente de monitoreo de Oracle/Coolify (BEAT-14)
+
+**Petición del usuario:** dejar registrada la conexión de control y supervisión **desde este mismo chat** como trabajo prioritario, sin reabrir las tareas de diseño ni crear nuevas aplicaciones en el teléfono.
+
+**Estado observado (23-11-2026):** el puente `bunker-bridge` respondió a [diagnóstico del servidor #618](https://github.com/Yanzsmartwood2025/bunker-ops/issues/618) y [consulta de inventario Coolify #619](https://github.com/Yanzsmartwood2025/bunker-ops/issues/619). Son consultas **bajo demanda**, no prueban un monitor proactivo ni permisos para crear/configurar aplicaciones. En el inventario no aparece `quantdesk-ai` como recurso de Coolify. No se ha alterado el servidor.
+
+**Siguiente fase (solo monitoreo):** verificar permisos disponibles, identificar si el agente de Oracle necesita una actualización puntual y añadir un temporizador ligero que registre salud del host, Docker/Coolify y del proceso que se autorice, con errores redactados, sin exponer secretos. Publicar resultados/alertas por el canal existente con frecuencia limitada y comprobar su funcionamiento sin mantener abierto ChatGPT. Monitorear una tabla de datos solo cuando los permisos de lectura sean correctos y verificables.
+
+**Manual / instalaciones:** no hace falta instalar otra aplicación Android. Podría requerirse **una intervención puntual** para actualizar el puente del servidor o aprobar permisos mínimos de lectura en Coolify; debe diagnosticarse antes de pedirla. Nunca pedir credenciales en el chat ni reinstalar Coolify, Oracle o tocar otros contenedores. El monitoreo autónomo pertenece al agente del servidor; ChatGPT puede consultar los reportes cuando está disponible, no quedarse observando continuamente por sí solo.
+
+**Seguimiento principal:** [BEAT #67](https://github.com/Yanzsmartwood2025/quantdesk-ai/issues/67) y [Bunker #96](https://github.com/Yanzsmartwood2025/bunker-ops/issues/96). La posibilidad de crear un recurso nuevo está separada en [Bunker #93](https://github.com/Yanzsmartwood2025/bunker-ops/issues/93) y requiere autorización específica.
