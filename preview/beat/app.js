@@ -194,9 +194,8 @@ const BeatAudit=Object.freeze({
     acceptedEvents++;
     el("event-count").textContent=String(acceptedEvents)+" evento"+(acceptedEvents===1?"":"s");
     el("ai-tool-status").textContent="Eventos recibidos";
-    while(el("activity-feed").querySelectorAll(".event-item").length>20){
-      el("activity-feed").lastElementChild.remove();
-    }
+    const displayed=el("activity-feed").querySelectorAll(".event-item");
+    if(displayed.length>20)displayed[displayed.length-1].remove();
     return true;
   },
   speaker(name,status){
