@@ -2,92 +2,90 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
-  <meta name="description" content="Beat Studio: demostración visual educativa y modular sin conexiones financieras ni consumo de API.">
-  <title>Beat Studio · Vista previa</title>
+  <meta name="description" content="Beat, interfaz minimalista de consulta y navegación.">
+  <title>Beat</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="stars" aria-hidden="true"></div>
-  <main class="shell">
-    <header class="brand-row">
-      <div class="brand">
-        <div class="mark" aria-hidden="true">B</div>
-        <div><h1>Beat<span class="muted"> Studio</span></h1>
-          <p>Laboratorio modular · Visualización educativa</p></div>
-      </div>
-      <div class="status" role="status"><span class="status-dot"></span> SOLO LECTURA</div>
+  <div class="app-shell">
+    <header class="topbar">
+      <button id="nav-toggle" type="button" class="glass-icon" aria-label="Abrir bandeja de activos"
+        aria-controls="sidebar" aria-expanded="false" title="Abrir o cerrar la bandeja">
+        <svg viewBox="0 0 30 30" width="27" height="27" role="img" aria-label="Bandeja deslizante">
+          <rect x="3.5" y="4.5" width="23" height="21" rx="5.5" fill="none"
+                stroke="currentColor" stroke-width="1.7"/>
+          <path d="M15 5v20" stroke="currentColor" stroke-width="1" opacity=".25"/>
+          <path class="sliding-line" d="M9 9v12" stroke="currentColor" stroke-width="2.8"
+                stroke-linecap="round"/>
+        </svg>
+      </button>
+      <h1>Beat</h1>
+      <span class="top-status"><i aria-hidden="true"></i> Sin conexión de datos</span>
     </header>
-    <nav class="glass navbar" aria-label="Navegación de Beat">
-      <div class="browser-decor" aria-hidden="true"><i></i><i></i><i></i></div>
-      <div class="browser-address"><span aria-hidden="true">⌁</span><span>BEAT / STUDIO</span><span class="dim">VISTA PREVIA</span></div>
-      <button id="reset" class="glass-btn square" title="Restablecer vista" aria-label="Restablecer vista">↻</button>
-    </nav>
-    <div class="glass selector-wrap">
-      <div class="section-label">01 / BIBLIOTECA DE DATOS <span class="subtle">30 muestras ficticias · Sin cotizaciones</span></div>
-      <div class="tabs" id="tabs" role="tablist" aria-label="Categorías de instrumentos"></div>
-      <div class="search-row">
-        <div class="search-control">
-          <label class="sr-only" for="search">Buscar en catálogo</label>
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="m15 15 5 5" stroke="currentColor" stroke-width="2"></path></svg>
-          <input id="search" type="search" placeholder="Buscar nombre o código..." autocomplete="off">
-        </div>
-        <button id="chooser" class="glass-btn" aria-haspopup="dialog" aria-controls="catalog-dialog">Explorar bandeja</button>
+
+    <div class="scrim" id="scrim" hidden></div>
+    <aside class="sidebar" id="sidebar" aria-label="Bandeja de activos" aria-hidden="true"
+      inert>
+      <div class="sidebar-head">
+        <div><span class="eyebrow">EXPLORAR</span><h2>Activos</h2></div>
+        <button id="nav-close" type="button" class="glass-icon close-icon"
+          aria-label="Cerrar bandeja">×</button>
       </div>
-      <p class="helper">Pulsa cualquier categoría para abrir su bandeja. Todos los ejemplos son ficticios y no se consultan servicios financieros.</p>
-      <dialog id="catalog-dialog" class="catalog-dialog" aria-labelledby="catalog-title">
-        <div class="drawer-head">
-          <div><div class="section-label">BIBLIOTECA / CATEGORÍAS</div><h3 id="catalog-title">Seleccionar una muestra</h3>
-            <p class="muted caption">Abre una sola vista. Las categorías vacías siguen identificadas.</p></div>
-          <button id="drawer-close" type="button" class="glass-btn square" aria-label="Cerrar bandeja">×</button>
+
+      <div class="sidebar-search">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/>
+          <path d="m15 15 5 5" stroke="currentColor" stroke-width="1.7"/>
+        </svg>
+        <label for="filter" class="sr-only">Buscar activo por nombre</label>
+        <input id="filter" type="search" placeholder="Buscar nombre..." autocomplete="off">
+      </div>
+      <nav id="categories" class="category-list" aria-label="Categorías disponibles"></nav>
+      <div class="list-heading"><span id="group-label">Forex</span><span id="group-count"></span></div>
+      <div class="asset-list" id="asset-list" aria-live="polite"></div>
+      <div class="sidebar-note">Lista de nombres de referencia. La disponibilidad en Deriv no está verificada. No hay precios en vivo.</div>
+    </aside>
+
+    <main class="workspace" id="workspace">
+      <div class="instrument-header">
+        <div>
+          <span class="eyebrow">PANTALLA CENTRAL</span>
+          <h2 id="selected-name">Selecciona un activo</h2>
+          <p id="selected-context">Abre el menú de la esquina superior izquierda para elegir un nombre.</p>
         </div>
-        <nav class="drawer-tabs" id="drawer-tabs" aria-label="Categorías de la bandeja"></nav>
-        <div class="drawer-search search-control">
-          <label class="sr-only" for="drawer-query">Buscar muestra dentro de la bandeja</label>
-          <input id="drawer-query" type="search" placeholder="Buscar en la categoría actual..." autocomplete="off"/>
+        <button id="clear" type="button" class="small-button" hidden>Cerrar vista</button>
+      </div>
+
+      <div class="chart-surface">
+        <div class="chart-toolbar">
+          <span class="toolbar-title">GRÁFICO</span>
+          <div class="timeframes" id="timeframes" role="group" aria-label="Temporalidad"></div>
         </div>
-        <section id="catalog" class="catalog" aria-label="Listado de muestras guardadas"></section>
-        <p class="muted caption drawer-note">Nombres y símbolos completamente inventados. No se consultan precios, disponibilidad ni señales.</p>
-      </dialog>
-    </div>
-    <div class="columns">
-      <section class="chart-panel" aria-label="Pantalla central de gráficos educativos">
-        <div class="chart-header">
-          <div>
-            <div class="section-label">02 / PANTALLA CENTRAL</div>
-            <h2 id="selected-name">Selecciona una serie</h2>
-            <p class="muted caption" id="selected-details">Un elemento abierto a la vez · Sin consultas externas</p>
+        <section class="chart-area" aria-label="Área principal del gráfico sin datos de mercado">
+          <div class="chart-grid" aria-hidden="true"></div>
+          <div class="chart-empty" role="status">
+            <div class="empty-symbol" aria-hidden="true">◇</div>
+            <h3 id="empty-title">No hay cotizaciones conectadas</h3>
+            <p id="empty-text">Beat puede mostrar el nombre seleccionado, pero esta vista todavía no recibe movimientos en tiempo real.</p>
+            <span class="read-only">VISTA DE DISEÑO · SIN DATOS EN VIVO</span>
           </div>
-          <button id="close" class="glass-btn" hidden>Cerrar vista</button>
+        </section>
+        <div class="chart-footer">
+          <span><span class="green-dot">●</span> Vela ascendente: verde</span>
+          <span><span class="red-dot">●</span> Vela descendente: rojo</span>
+          <span id="period-display">Período: 1m</span>
         </div>
-        <div class="chart-tools"><span id="status">SIN ACTIVIDAD</span>
-          <div class="tool-actions">
-            <div class="range-group" id="ranges" aria-label="Intervalo ficticio"></div>
-            <button id="play" type="button" class="glass-btn play-btn" disabled aria-pressed="false">▶ Animar muestra</button>
-          </div>
-        </div>
-        <div class="chart">
-          <svg id="chart" viewBox="0 0 920 420" role="img" aria-label="Dibujo ficticio generado localmente sin datos financieros actuales"></svg>
-          <div class="chart-overlay" id="chart-empty"><span class="circle">⌁</span><h3>Pantalla lista</h3><p>Escoge un registro de arriba para ver una gráfica ficticia y practicar la navegación.</p></div>
-        </div>
-        <div class="chart-foot"><span>● VERDE · SUBIDA</span><span>● ROJO · BAJADA</span><span>SIMULACIÓN ACELERADA · NO ES TIEMPO REAL</span></div>
-      </section>
-      <aside class="sidebar">
-        <div class="panel"><div class="section-label">03 / FICHA DE DATOS</div><h3 id="fact-name">Ningún registro</h3><dl id="facts"><div><dt>Fuente</dt><dd>Muestras ficticias</dd></div><div><dt>Conexiones en curso</dt><dd>0</dd></div></dl></div>
-        <div class="panel"><div class="section-label">04 / CONTROL DE RECURSOS</div><h3>Consumo protegido</h3>
-          <dl><div><dt>Elementos simultáneos</dt><dd id="open-count">0 / 1</dd></div><div><dt>Consultas externas</dt><dd>0</dd></div><div><dt>Solicitudes a IA</dt><dd>0</dd></div><div><dt>Suscripciones</dt><dd>0</dd></div><div><dt>Costo externo</dt><dd>$0.00</dd></div></dl>
-          <p class="helper">Todas las muestras se descargan con la página. Cambiar de elemento no activa procesos.</p>
-        </div>
-      </aside>
-    </div>
-    <section class="agents panel">
-      <div class="agents-title"><div><div class="section-label">05 / EQUIPO DE AGENTES</div><h3>Espacios independientes</h3><p class="muted">Demostración local: evidencias, revisión y presentación. Ninguna IA remota conectada.</p></div><span class="capsule">MODO PAUSA</span></div>
-      <div id="agents" class="agent-grid"></div>
-      <div class="agent-actions"><button class="glass-btn" id="speak">Escuchar resumen (voz del navegador)</button><button class="glass-btn" id="stop">Detener voz</button><span id="voice-status" aria-live="polite" class="caption muted">La voz se inicia solo al pulsar.</span></div>
-    </section>
-    <footer>Beat Studio · Prototipo aislado · 30 muestras inventadas y categorías navegables · Sin cotizaciones, señales, órdenes ni conexiones a servicios financieros</footer>
-  </main>
+      </div>
+      <div class="resource-line" aria-label="Estado de recursos">
+        <span>Visores abiertos <strong id="open-count">0 / 1</strong></span>
+        <span>Consultas a API <strong>0</strong></span>
+        <span>Suscripciones <strong>0</strong></span>
+        <span>Agentes remotos <strong>Desactivados</strong></span>
+      </div>
+    </main>
+  </div>
   <script src="./app.js" type="module"></script>
 </body>
 </html>
