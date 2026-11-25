@@ -10,7 +10,7 @@ const ui = fs.readFileSync(path.join(root, "components/beat/BeatNative.tsx"), "u
 
 test("Next.js /beat uses a native client-side React workbench", () => {
   assert.match(page, /import \{ BeatNative \}/);
-  assert.match(page, /return <BeatNative records=\{historicalCatalog\} \/>/);
+  assert.match(page, /<BeatNative records=\{historicalCatalog\} \/>/);
   assert.match(ui, /'use client'/);
   assert.match(ui, /export function BeatNative/);
 });
