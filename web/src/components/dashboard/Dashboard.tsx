@@ -8,12 +8,11 @@ import { AgentStatusCard } from './AgentStatusCard';
 import { ReasoningFeed } from './ReasoningFeed';
 import { ChartWidget } from './ChartWidget';
 import { ThemeToggle } from '../ThemeToggle';
-import { InstrumentSelector, InstrumentGroup } from './InstrumentSelector';
+import type { InstrumentGroup } from './InstrumentSelector';
 
 const ASSET_CATEGORIES = ['Forex', 'Sintéticos', 'Cripto', 'Índices', 'Commodities'];
 
-// Hardcoded for presentation when DB is empty, but overridden by DB
-const DEFAULT_FOREX = ['EUR_USD', 'GBP_USD', 'USD_JPY', 'AUD_USD', 'USD_CAD', 'USD_CHF', 'NZD_USD'];
+// Only display instruments actually stored in the read-only catalogue.
 
 const TIMEFRAMES_DISPLAY = ['1m', '5m', '15m', '30m', '1H', '4H', '1D'];
 const TIMEFRAMES_INTERNAL = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
@@ -21,13 +20,17 @@ const TIMEFRAMES_INTERNAL = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'];
 export function Dashboard() {
   const [category, setCategory] = useState(ASSET_CATEGORIES[0]);
   const [instrument, setInstrument] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerSearch, setDrawerSearch] = useState('');
 
   // Data for selector
   const [instrumentsByMarket, setInstrumentsByMarket] = useState<Record<string, InstrumentGroup[]>>({});
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const [timeframes, setTimeframes] = useState<string[]>([]); // Display values
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>(''); // Display value ('1H')
   const [candles, setCandles] = useState<MarketCandle[]>([]);
+  const [candlesQueryKey, setCandlesQueryKey] = useState('');
   const [lastUpdatedCandle, setLastUpdatedCandle] = useState<MarketCandle | null>(null);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
 
@@ -38,7 +41,7 @@ export function Dashboard() {
   const [isTracesLoading, setIsTracesLoading] = useState(false);
   const [isInitialCandlesLoading, setIsInitialCandlesLoading] = useState(false);
   const dataLoading = isTracesLoading || isInitialCandlesLoading;
-  const prevInstrument = useRef(instrument);
+  const drawerButtonRef = useRef<HTMLButtonElement>(null);
 
   // Active states for agents
   const [analystActive, setAnalystActive] = useState(false);
@@ -59,73 +62,38 @@ export function Dashboard() {
           .select('instrument, category, market, pip_size');
 
         if (error) {
-          console.error("Failed to load instruments:", error);
-          // Set fallback mock data
-          setInstrumentsByMarket({
-            'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
-            'Sintéticos': [
-              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-            ]
-          });
+          console.error("Failed to load catalogue:", error);
+          setCatalogError("No fue posible consultar el catálogo guardado.");
+          setInstrumentsByMarket({});
           return;
         }
 
-        if (data && data.length > 0) {
-          const marketCategoryMap: Record<string, Record<string, string[]>> = {};
-          const pipsRecord: Record<string, number> = {};
+        setCatalogError(null);
+        const marketCategoryMap: Record<string, Record<string, string[]>> = {};
+        const pipsRecord: Record<string, number> = {};
 
-          data.forEach(item => {
-            if (item.pip_size !== null) {
-              pipsRecord[item.instrument] = Number(item.pip_size);
-            }
+        (data || []).forEach(item => {
+          if (!item.instrument) return;
+          if (item.pip_size !== null) pipsRecord[item.instrument] = Number(item.pip_size);
+          const market = item.market || "Sin clasificar";
+          const group = item.category || "General";
+          if (!marketCategoryMap[market]) marketCategoryMap[market] = {};
+          if (!marketCategoryMap[market][group]) marketCategoryMap[market][group] = [];
+          marketCategoryMap[market][group].push(item.instrument);
+        });
 
-            // Fallback for old records where market might be null
-            const mkt = item.market || (item.category === 'Forex' ? 'Forex' : 'Sintéticos');
-            const cat = item.category || 'General';
-
-            if (!marketCategoryMap[mkt]) {
-              marketCategoryMap[mkt] = {};
-            }
-            if (!marketCategoryMap[mkt][cat]) {
-              marketCategoryMap[mkt][cat] = [];
-            }
-            marketCategoryMap[mkt][cat].push(item.instrument);
-          });
-
-          setInstrumentPips(pipsRecord);
-
-          const byMarket: Record<string, InstrumentGroup[]> = {};
-          Object.keys(marketCategoryMap).forEach(mkt => {
-            const categoriesObj = marketCategoryMap[mkt];
-            const groups: InstrumentGroup[] = Object.keys(categoriesObj).map(cat => ({
-              label: cat,
-              items: categoriesObj[cat].sort()
-            }));
-            groups.sort((a, b) => a.label.localeCompare(b.label));
-            byMarket[mkt] = groups;
-          });
-
-          setInstrumentsByMarket(byMarket);
-        } else {
-          // Mock for presentation if empty
-          setInstrumentsByMarket({
-            'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
-            'Sintéticos': [
-              { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-              { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-            ]
-          });
-        }
+        const byMarket: Record<string, InstrumentGroup[]> = {};
+        Object.entries(marketCategoryMap).forEach(([market, groups]) => {
+          byMarket[market] = Object.entries(groups)
+            .map(([label, items]) => ({ label, items: [...new Set(items)].sort() }))
+            .sort((a,b) => a.label.localeCompare(b.label));
+        });
+        setInstrumentPips(pipsRecord);
+        setInstrumentsByMarket(byMarket);
       } catch (err) {
-         console.error("Supabase fetch error", err);
-         setInstrumentsByMarket({
-           'Forex': [{ label: 'Forex', items: DEFAULT_FOREX }],
-           'Sintéticos': [
-             { label: 'Volatility Indices', items: ['R_75', 'R_100'] },
-             { label: 'Crash/Boom', items: ['BOOM1000', 'CRASH1000'] }
-           ]
-         });
+        console.error("Catalogue query failed:", err);
+        setCatalogError("No fue posible consultar el catálogo guardado.");
+        setInstrumentsByMarket({});
       } finally {
         setLoading(false);
       }
@@ -134,24 +102,68 @@ export function Dashboard() {
     fetchInstruments();
   }, []);
 
-  // Reset instrument when switching categories if selected instrument is not in selected market
+  // Only one instrument is selected. Selection never writes to the database,
+  // opens broker connections, or starts background analysis.
+  const clearSelectedView = () => {
+    setCandles([]);
+    setCandlesQueryKey('');
+    setTraces([]);
+    setLastUpdatedCandle(null);
+    setIsInstrumentActive(false);
+    setSelectedTimeframe('');
+    setTimeframes([]);
+    setIsTracesLoading(false);
+    setIsInitialCandlesLoading(false);
+    setAnalystActive(false);
+    setRiskActive(false);
+    setPortfolioActive(false);
+  };
+
+  const selectInstrument = (next: string) => {
+    setDrawerOpen(false);
+    if (instrument === next) return;
+    clearSelectedView();
+    setInstrument(next);
+  };
+
+  const selectCategory = (nextCategory: string) => {
+    if (nextCategory === category) return;
+    clearSelectedView();
+    setInstrument('');
+    setCategory(nextCategory);
+  };
+
+  // The catalogue drawer is visual navigation only; Escape closes it.
   useEffect(() => {
-    const syncInstrument = () => {
-      if (!instrument) return;
-
-      const currentMarketGroups = instrumentsByMarket[category] || [];
-      const allMarketInstruments = currentMarketGroups.flatMap(g => g.items);
-
-      if (allMarketInstruments.length > 0 && !allMarketInstruments.includes(instrument)) {
-        setInstrument('');
-      }
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrawerOpen(false);
     };
-    syncInstrument();
-  }, [category, instrumentsByMarket, instrument]);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleEscape);
+      drawerButtonRef.current?.focus();
+    };
+  }, [drawerOpen]);
+
+  // If the catalogue changes underneath the page, clear any unavailable selection.
+  useEffect(() => {
+    if (!instrument || loading) return;
+    const items = (instrumentsByMarket[category] || []).flatMap(group => group.items);
+    if (!items.includes(instrument)) setInstrument('');
+  }, [category, instrumentsByMarket, instrument, loading]);
+
+  const currentCategoryCount = (instrumentsByMarket[category] || []).reduce(
+    (sum, group) => sum + group.items.length, 0
+  );
 
   // Effect 1: Instrument Data Fetch (Traces & Status)
   useEffect(() => {
     if (loading || !instrument) return;
+    let cancelled = false;
 
     const fetchInstrumentData = async () => {
       setIsTracesLoading(true);
@@ -175,6 +187,7 @@ export function Dashboard() {
           .eq('instrument', instrument)
           .single();
 
+        if (cancelled) return;
         if (activeData) {
           setIsInstrumentActive(activeData.is_active);
         } else {
@@ -189,31 +202,26 @@ export function Dashboard() {
       } catch (err) {
         console.error("Error during instrument data fetch:", err);
       } finally {
-        setIsTracesLoading(false);
+        if (!cancelled) setIsTracesLoading(false);
       }
     };
 
     fetchInstrumentData();
+    return () => { cancelled = true; };
   }, [instrument, loading]);
 
-  // Effect 2: Timeframe Data Fetch (Candles only)
+  // Read-only historical candles. A request belongs to exactly one instrument and timeframe.
+  // Clear the previous series immediately and ignore results from stale requests.
   useEffect(() => {
-    if (loading) return;
-
-    // Safety check - wait for selectedTimeframe to be set by Effect 1 if missing
-    if (!selectedTimeframe) return;
-
-    const isInstrumentChange = prevInstrument.current !== instrument;
-
-    // Clear lastUpdatedCandle safely outside of a direct effect body render-trigger
-    // We do it before async fetch so it's consistent.
+    if (loading || !instrument || !selectedTimeframe) return;
+    let cancelled = false;
+    const requestKey = instrument + ':' + selectedTimeframe;
 
     const fetchCandles = async () => {
-      if (isInstrumentChange) {
-         setIsInitialCandlesLoading(true);
-         setCandles([]); // Clear old candles to avoid flashing stale data
-      }
-      setLastUpdatedCandle(null); // Clear live updates on TF/Instrument change
+      setIsInitialCandlesLoading(true);
+      setCandles([]);
+      setCandlesQueryKey('');
+      setLastUpdatedCandle(null);
       try {
         const tfIndex = TIMEFRAMES_DISPLAY.indexOf(selectedTimeframe);
         const targetTimeframeInternal = tfIndex >= 0 ? TIMEFRAMES_INTERNAL[tfIndex] : null;
@@ -228,28 +236,34 @@ export function Dashboard() {
         if (targetTimeframeInternal) {
           candlesQuery = candlesQuery.eq('timeframe', targetTimeframeInternal);
         }
-
-        const { data: candlesData, error: candlesError } = await candlesQuery;
-
-        if (candlesData) {
-          setCandles(candlesData);
+        const { data, error } = await candlesQuery;
+        if (cancelled) return;
+        if (error) {
+          console.error('Failed to load candles:', error);
+          setCandles([]);
+        } else {
+          setCandles(data || []);
         }
-        if (candlesError) console.error("Failed to load candles:", candlesError);
-      } catch (err) {
-        console.error("Error during candle data fetch:", err);
+        setCandlesQueryKey(requestKey);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error during candle data fetch:', error);
+          setCandles([]);
+          setCandlesQueryKey(requestKey);
+        }
       } finally {
-        if (isInstrumentChange) {
-           setIsInitialCandlesLoading(false);
-           prevInstrument.current = instrument;
-        }
+        if (!cancelled) setIsInitialCandlesLoading(false);
       }
     };
 
     fetchCandles();
+    return () => { cancelled = true; };
   }, [instrument, selectedTimeframe, loading]);
 
-  // Supabase Realtime Subscriptions
+  // Supabase Realtime Subscriptions: at most one selected instrument.
   useEffect(() => {
+    if (!instrument || !selectedTimeframe) return;
+    let active = true;
     // Unfortunately, Supabase realtime filters only support a single equality condition out-of-the-box in the standard JS client for `filter`.
     // To strictly filter by instrument AND timeframe in real-time we must handle it client-side.
     // We subscribe to the instrument and filter the timeframe inside the callback.
@@ -275,7 +289,7 @@ export function Dashboard() {
             const newCandle = payload.payload.new as MarketCandle;
 
             // Client-side filtering by instrument and timeframe
-            if (newCandle.instrument !== instrument) return;
+            if (!active || newCandle.instrument !== instrument) return;
             if (!targetTimeframeInternal || newCandle.timeframe === targetTimeframeInternal) {
                setLastUpdatedCandle(newCandle);
             }
@@ -292,6 +306,7 @@ export function Dashboard() {
           (payload) => {
             console.log("[REALTIME] Event received:", payload);
             const newTrace = payload.new as AgentTrace;
+            if (!active || newTrace.instrument !== instrument) return;
             setTraces((current) => [newTrace, ...current]);
 
             // Trigger animations based on role
@@ -316,43 +331,22 @@ export function Dashboard() {
             filter: `instrument=eq.${instrument}`,
           },
           (payload) => {
-            setIsInstrumentActive(payload.new.is_active);
+            if (active && payload.new.instrument === instrument) setIsInstrumentActive(payload.new.is_active);
           }
         )
         .subscribe((status) => {
           console.log(`[REALTIME] Subscription status for room_${instrument}:`, status);
-          setDiagStatus(status);
+          if (active) setDiagStatus(status);
         });
 
       return () => {
+        active = false;
         supabase.removeChannel(channel);
       };
     } catch (err) {
       console.error("Error setting up realtime subscriptions:", err);
     }
   }, [instrument, selectedTimeframe]);
-
-  const toggleInstrumentActive = async () => {
-    const newState = !isInstrumentActive;
-    // Optimistic update
-    setIsInstrumentActive(newState);
-
-    try {
-      const { error } = await supabase
-        .from('active_instruments')
-        .update({ is_active: newState, activated_at: newState ? new Date().toISOString() : null })
-        .eq('instrument', instrument);
-
-      if (error) {
-        console.error("Failed to update active status:", error);
-        // Revert on error
-        setIsInstrumentActive(!newState);
-      }
-    } catch (err) {
-      console.error("Supabase update error:", err);
-      setIsInstrumentActive(!newState);
-    }
-  };
 
   // Derived state for empty state
   // We only show empty state if we are done loading AND we actually have 0 candles/traces
@@ -375,11 +369,16 @@ export function Dashboard() {
     return labels[inst] || inst;
   };
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-100 p-4 md:p-6 font-sans transition-colors duration-300 relative">
+  const filteredDrawerInstruments = (instrumentsByMarket[category] || [])
+    .flatMap(group => group.items)
+    .filter(inst => [inst, getInstrumentLabel(inst)].some(value =>
+      value.toLocaleLowerCase('es').includes(drawerSearch.trim().toLocaleLowerCase('es'))));
 
-      {/* Diagnóstico Flotante (Temporal) */}
-      <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-green-400 p-4 rounded-lg shadow-lg border border-gray-700 max-w-sm text-xs font-mono break-words pointer-events-none">
+  return (
+    <div className="beat-app min-h-screen bg-[#060606] text-white p-3 sm:p-5 lg:p-6 font-sans relative">
+
+      {/* Solo desarrollo: datos de depuración ocultos en producción. */}
+      {process.env.NODE_ENV === "development" && <div className="fixed bottom-4 right-4 z-50 bg-black/90 text-zinc-200 p-4 rounded-lg shadow-lg border border-gray-700 max-w-sm text-xs font-mono break-words pointer-events-none">
         <h3 className="font-bold text-white mb-2 uppercase border-b border-gray-700 pb-1">Realtime Diagnóstico</h3>
         <p><strong>URL:</strong> {supabaseUrl}</p>
         <p><strong>Status:</strong> {diagStatus}</p>
@@ -388,87 +387,136 @@ export function Dashboard() {
           <strong>lastUpdatedCandle:</strong>
           <pre className="text-gray-300 whitespace-pre-wrap">{lastUpdatedCandle ? JSON.stringify(lastUpdatedCandle, null, 2) : 'null'}</pre>
         </div>
-      </div>
+      </div>}
 
-      <header className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-        <div className="flex justify-between items-center w-full md:w-auto">
-          <div>
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-              QuantDesk AI
-            </h1>
-            <p className="text-sm text-gray-500">Mesa de inversión autónoma</p>
-          </div>
-          <div className="md:hidden">
-            <ThemeToggle />
+      <header className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <button ref={drawerButtonRef} type="button" aria-label="Abrir bandeja de activos"
+            aria-controls="beat-drawer" aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+            className="beat-glass-button flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+            title="Explorar activos">
+            <svg viewBox="0 0 30 30" width="28" height="28" fill="none" aria-hidden="true">
+              <rect x="3" y="4" width="24" height="22" rx="5" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M15 5v20" stroke="currentColor" opacity=".3" />
+              <path d="M9 9v12" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"
+                style={{ transition: 'transform 200ms ease', transform: drawerOpen ? 'translateX(9px)' : 'translateX(0)' }} />
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-3xl font-black tracking-tight text-white">Beat</h1>
+            <p className="truncate text-xs text-zinc-400">
+              {instrument ? getInstrumentLabel(instrument) : 'Estudio visual de datos · Solo lectura'}
+            </p>
           </div>
         </div>
-
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto overflow-hidden">
-          <div className="flex flex-nowrap overflow-x-auto w-full items-center gap-2 bg-gray-100 dark:bg-[#131722] p-1 rounded-lg border border-gray-200 dark:border-gray-800 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {ASSET_CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  category === cat
-                    ? 'bg-white dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-gray-200 shadow-sm dark:border-blue-500/30'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-800 border border-transparent'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <label className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">Instrumento:</label>
-            <InstrumentSelector
-              instruments={category === 'Forex' ? (instrumentsByMarket['Forex'] || []).flatMap(g => g.items) : []}
-              groups={category !== 'Forex' ? (instrumentsByMarket[category] || []) : []}
-              selectedInstrument={instrument}
-              onSelect={setInstrument}
-              getLabel={getInstrumentLabel}
-            />
-            <button
-              onClick={toggleInstrumentActive}
-              className={`ml-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors border ${
-                isInstrumentActive
-                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50 dark:hover:bg-blue-500/30'
-                  : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 dark:bg-[#1a1f2e] dark:text-gray-400 dark:border-gray-700 dark:hover:bg-[#2a2f3e]'
-              }`}
-              title={isInstrumentActive ? 'Pausar análisis de IA' : 'Activar análisis de IA (consumirá tokens)'}
-            >
-              {isInstrumentActive ? 'Activo' : 'Pausado'}
-            </button>
-          </div>
-          <div className="hidden md:block">
-            <ThemeToggle />
-          </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="hidden rounded-full border border-white/20 bg-white/5 px-3 py-2 text-xs text-zinc-300 sm:inline-flex">
+            SOLO LECTURA
+          </span>
+          {instrument && (
+            <button type="button" onClick={() => selectInstrument('')}
+              className="beat-glass-button min-h-11 rounded-full px-3 text-xs"
+              aria-label="Cerrar la vista seleccionada">Cerrar vista</button>
+          )}
+          <ThemeToggle />
         </div>
       </header>
 
+      {drawerOpen && (
+        <>
+          <button type="button" className="fixed inset-0 z-[80] cursor-default bg-black/75"
+            aria-label="Cerrar bandeja de activos" onClick={() => setDrawerOpen(false)} />
+          <aside id="beat-drawer" role="dialog" aria-modal="true"
+            aria-labelledby="beat-drawer-title"
+            className="fixed inset-y-0 left-0 z-[81] w-[min(90vw,370px)] overflow-y-auto border-r border-white/20 bg-[#080808] p-4 shadow-2xl sm:p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-zinc-400">EXPLORAR</p>
+                <h2 id="beat-drawer-title" className="text-2xl font-bold">Activos</h2>
+              </div>
+              <button type="button" onClick={() => setDrawerOpen(false)}
+                aria-label="Cerrar bandeja" className="beat-glass-button h-11 w-11 rounded-xl text-2xl">×</button>
+            </div>
+            <nav aria-label="Categorías de datos" className="mb-5 grid grid-cols-2 gap-2">
+              {ASSET_CATEGORIES.map(cat => (
+                <button key={cat} type="button"
+                  onClick={() => { selectCategory(cat); setDrawerSearch(''); }}
+                  aria-pressed={category === cat}
+                  className={category === cat
+                    ? 'beat-glass-button rounded-xl border border-white/70 bg-white/15 p-3 text-left text-sm'
+                    : 'beat-glass-button rounded-xl p-3 text-left text-sm text-zinc-400'}>
+                  <span className="block">{cat === 'Commodities' ? 'Materias primas' : cat}</span>
+                  <span className="text-xs text-zinc-400">
+                    {(instrumentsByMarket[cat] || []).reduce((sum, group) => sum + group.items.length, 0)}
+                  </span>
+                </button>
+              ))}
+            </nav>
+            <label htmlFor="beat-drawer-search" className="mb-2 block text-sm text-zinc-300">
+              Buscar en {category}
+            </label>
+            <input id="beat-drawer-search" type="search" autoFocus
+              value={drawerSearch} onChange={event => setDrawerSearch(event.target.value)}
+              placeholder="Buscar por nombre o código"
+              className="mb-4 min-h-11 w-full rounded-xl border border-white/25 bg-white/5 px-3 text-white outline-offset-2" />
+            <div className="mb-3 flex justify-between text-xs text-zinc-400">
+              <span>Instrumentos guardados</span>
+              <span>{filteredDrawerInstruments.length}</span>
+            </div>
+            {filteredDrawerInstruments.length === 0 ? (
+              <p role="status" className="rounded-xl border border-white/10 p-4 text-sm text-zinc-400">
+                No hay instrumentos registrados que coincidan. No se muestran nombres inventados.
+              </p>
+            ) : (
+              <div className="space-y-1" role="list" aria-label="Instrumentos disponibles para consultar">
+                {filteredDrawerInstruments.map(inst => (
+                  <div key={inst} role="listitem">
+                    <button type="button" onClick={() => selectInstrument(inst)}
+                      aria-pressed={instrument === inst}
+                      className={instrument === inst
+                        ? 'flex min-h-12 w-full items-center rounded-xl border border-white/60 bg-white/15 px-4 text-left text-sm text-white'
+                        : 'flex min-h-12 w-full items-center rounded-xl border border-transparent px-4 text-left text-sm text-zinc-300 hover:bg-white/10'}>
+                      <span className="min-w-0 truncate">{getInstrumentLabel(inst)}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-5 text-xs leading-5 text-zinc-500">
+              Solo muestra registros disponibles en la base de datos. Elegir una opción abre una sola vista y no inicia operaciones.
+            </p>
+          </aside>
+        </>
+      )}
+
       {!instrument ? (
         <div className="flex flex-col items-center justify-center h-[60vh] text-center px-4 animate-in fade-in duration-500">
-          <div className="w-24 h-24 mb-6 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-900/20">
+          <div className="beat-logo flex h-20 w-20 items-center justify-center rounded-3xl mb-6">
             <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-            Bienvenido a QuantDesk AI
+          <h2 className="text-3xl font-black mb-3 text-white">
+            Bienvenido a Beat
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-md text-lg">
-            Selecciona un instrumento del menú superior para comenzar a monitorear los análisis y señales del mercado.
+            {catalogError
+              ? catalogError
+              : currentCategoryCount === 0
+                ? `Todavía no hay instrumentos registrados en ${category}. No se mostrarán ejemplos como datos reales.`
+                : `Hay ${currentCategoryCount} instrumentos guardados en ${category}. Elige uno para abrir su gráfico; cambiar de instrumento cierra el anterior.`}
+
           </p>
         </div>
       ) : (loading || dataLoading) ? (
          <div className="flex items-center justify-center h-[60vh]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-400"></div>
          </div>
       ) : isDataEmpty ? (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 h-auto lg:h-[calc(100vh-160px)]">
           {/* We'll render empty states or empty containers here so it matches the UI structure */}
-          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
+          <div className="order-2 lg:order-1 lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
             <div className="flex flex-col gap-3">
               <AgentStatusCard
                 role="analyst"
@@ -499,14 +547,14 @@ export function Dashboard() {
               <ReasoningFeed traces={traces} isPaused={!isInstrumentActive} />
             </div>
           </div>
-          <div className="lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
-            <EmptyState message={`Esperando las primeras velas y señales para ${getInstrumentLabel(instrument)}...`} />
+          <div className="order-1 lg:order-2 lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
+            <EmptyState message={`No hay registros visualizables para ${getInstrumentLabel(instrument)}...`} />
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-120px)]">
           {/* Left Column: Agents & Feed */}
-          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
+          <div className="order-2 lg:order-1 lg:col-span-1 flex flex-col gap-4 overflow-hidden h-auto lg:h-full">
             <div className="flex flex-col gap-3">
               <AgentStatusCard
                 role="analyst"
@@ -540,7 +588,7 @@ export function Dashboard() {
           </div>
 
           {/* Right Column: Chart */}
-          <div className="lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
+          <div className="order-1 lg:order-2 lg:col-span-3 h-full min-h-[400px] flex flex-col gap-4">
             {timeframes.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Temporalidad:</span>
@@ -551,8 +599,8 @@ export function Dashboard() {
                       onClick={() => setSelectedTimeframe(tf)}
                       className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
                         selectedTimeframe === tf
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          ? 'bg-white text-black shadow-sm'
+                          : 'bg-white/5 text-zinc-300 hover:bg-white/10'
                       }`}
                     >
                       {tf}
@@ -562,7 +610,11 @@ export function Dashboard() {
               </div>
             )}
             <div className="flex-1 min-h-[400px]">
-              <ChartWidget candles={candles} traces={traces} lastUpdatedCandle={lastUpdatedCandle} pipSize={instrumentPips[instrument]} />
+              <ChartWidget key={instrument + ':' + selectedTimeframe}
+                candles={candlesQueryKey === instrument + ':' + selectedTimeframe ? candles : []}
+                traces={traces}
+                lastUpdatedCandle={candlesQueryKey === instrument + ':' + selectedTimeframe ? lastUpdatedCandle : null}
+                pipSize={instrumentPips[instrument]} />
             </div>
           </div>
         </div>
