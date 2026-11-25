@@ -10,7 +10,7 @@ const ui = fs.readFileSync(path.join(root, "components/beat/BeatNative.tsx"), "u
 
 test("Next.js /beat uses a native client-side React workbench", () => {
   assert.match(page, /import \{ BeatNative \}/);
-  assert.match(page, /return <BeatNative \/>/);
+  assert.match(page, /return <BeatNative records=\{historicalCatalog\} \/>/);
   assert.match(ui, /'use client'/);
   assert.match(ui, /export function BeatNative/);
 });
@@ -38,4 +38,14 @@ test("agent status is transparent instead of fabricated", () => {
   assert.match(ui, /Sin actividad recibida/);
   assert.match(ui, /Desconectado/);
   assert.match(ui, /no se inventarán intervenciones/);
+});
+
+test("history is selected on demand and cancelled when the selection changes", () => {
+  const history = fs.readFileSync(path.join(root, "components/beat/beatHistorical.ts"), "utf8");
+  assert.match(ui, /loadHistoricalSeries\(selectedCode,ctrl.signal\)/);
+  assert.match(ui, /ctrl.abort\(\)/);
+  assert.match(history, /MAX_POINTS = 366/);
+  assert.match(history, /cache.size>=8/);
+  assert.match(history, /date > now - MIN_AGE/);
+  assert.doesNotMatch(history, /setInterval|WebSocket|supabase|api\.deriv/i);
 });
