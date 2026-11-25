@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { loadHistoricalSeries, type HistoricalSeries } from './beatHistorical';
 
 type Panel = 'grafico' | 'herramientas' | 'ficha' | 'ia';
 type Category = 'Forex' | 'Criptomonedas' | 'Materias primas' | 'Índices' | 'Sintéticos' | 'Acciones';
@@ -38,12 +39,29 @@ export function BeatNative({ records = [] }: { records?: BeatInstrumentRecord[] 
   const [panel, setPanel] = useState<Panel>('grafico');
   const [symbol, setSymbol] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
+  const [history, setHistory] = useState<HistoricalSeries | null>(null);
+  const [historyError, setHistoryError] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const cleanRecords = useMemo(
     () => records.filter(r => r.code && r.name && CATEGORIES.includes(r.category)),
     [records]
   );
   const selected = cleanRecords.find(r => r.code === symbol) ?? null;
+  const selectedCode = selected?.code ?? null;
+  useEffect(() => {
+    setHistory(null); setHistoryError(''); setHistoryLoading(false);
+    if (!selectedCode) return;
+    const ctrl = new AbortController();
+    setHistoryLoading(true);
+    void loadHistoricalSeries(selectedCode,ctrl.signal).then(value => {
+      if (!ctrl.signal.aborted) setHistory(value);
+    }).catch(error => {
+      if (!ctrl.signal.aborted) setHistoryError(error.message || 'Histórico no disponible');
+    }).finally(() => { if (!ctrl.signal.aborted) setHistoryLoading(false); });
+    return () => ctrl.abort();
+  }, [selectedCode]);
+  const currentHistory = history?.code === selectedCode ? history : null;
   const visible = cleanRecords
     .filter(r => r.category === category)
     .filter(r => (r.name + ' ' + r.code).toLocaleLowerCase('es')
@@ -58,7 +76,6 @@ export function BeatNative({ records = [] }: { records?: BeatInstrumentRecord[] 
   function changeCategory(next: Category) {
     setCategory(next);
     setSearch('');
-    setSymbol(null);
   }
   function closeDrawer() {
     setDrawerOpen(false);
@@ -154,11 +171,22 @@ export function BeatNative({ records = [] }: { records?: BeatInstrumentRecord[] 
             <div className="relative grid h-[55vh] min-h-[340px] place-items-center px-5 text-center">
               {showGrid && <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-40"
                 style={{backgroundImage:'linear-gradient(#ffffff12 1px, transparent 1px), linear-gradient(90deg, #ffffff12 1px, transparent 1px)',backgroundSize:'70px 70px'}}/>}
-              <div className="relative max-w-md">
+              {currentHistory ? <div className="relative w-full max-w-4xl">
+                <p className="mb-3 text-xs text-zinc-400">Histórico diario · {currentHistory.source}</p>
+                <svg viewBox="0 0 800 260" className="w-full" role="img" aria-label="Serie histórica educativa">
+                  <polyline fill="none" stroke="white" strokeWidth="2" points={currentHistory.points.map((p,i)=>{
+                    const values=currentHistory.points.map(row=>row.value);
+                    const low=Math.min(...values),high=Math.max(...values);
+                    return (20+i*760/(values.length-1))+','+(240-(p.value-low)/Math.max(high-low,Number.EPSILON)*220);
+                  }).join(' ')}/>
+                </svg>
+                <div className="flex justify-between text-xs text-zinc-400"><span>{currentHistory.points[0].date}</span><span>{currentHistory.points.at(-1)?.date}</span></div>
+              </div> : <div className="relative max-w-md">
                 <p className="mb-3 text-4xl text-zinc-500">◇</p>
-                <h3 className="mb-2 text-lg font-semibold">No hay series cargadas</h3>
+                <h3 className="mb-2 text-lg font-semibold">{historyLoading ? "Cargando histórico…" : "No hay series cargadas"}</h3>
+                {historyError && <p role="status" className="mb-2 text-sm text-zinc-400">{historyError}</p>}
                 <p className="text-sm leading-7 text-zinc-400">La interfaz es propia de React. Cuando exista una fuente de lectura autorizada, el gráfico podrá representar sus registros reales sin usar un widget externo.</p>
-              </div>
+              </div>}
             </div>
           </section>
 
