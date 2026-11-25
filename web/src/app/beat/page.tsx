@@ -1,4 +1,5 @@
 import { BeatNative } from '@/components/beat/BeatNative';
+import { historicalCatalog } from '@/components/beat/historicalCatalog';
 
 export const metadata = {
   title: 'Beat | Visor React propio',
@@ -6,5 +7,5 @@ export const metadata = {
 };
 
 export default function BeatPage() {
-  return <BeatNative />;
+  return <BeatNative records={historicalCatalog} />;
 }
