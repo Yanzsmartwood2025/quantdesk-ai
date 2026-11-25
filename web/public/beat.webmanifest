@@ -1,0 +1,26 @@
+{
+  "id": "/beat",
+  "name": "Beat",
+  "short_name": "Beat",
+  "description": "Visor educativo de datos históricos",
+  "lang": "es",
+  "start_url": "/beat",
+  "scope": "/beat",
+  "display": "standalone",
+  "background_color": "#07080a",
+  "theme_color": "#07080a",
+  "icons": [
+    {
+      "src": "/beat/pwa-icon/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/beat/pwa-icon/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
